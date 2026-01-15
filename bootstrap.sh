@@ -22,12 +22,12 @@ if ! command_exists docker; then
 fi
 
 # Check for Docker Compose
-if ! command_exists docker; then
-    echo -e "${RED}Error: Docker is not installed or docker compose is not available${NC}"
+if ! docker compose version >/dev/null 2>&1; then
+    echo -e "${RED}Error: Docker Compose is not available${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}✓ Docker is installed${NC}"
+echo -e "${GREEN}✓ Docker and Docker Compose are installed${NC}"
 
 # Create necessary directories
 echo "Creating necessary directories..."

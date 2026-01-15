@@ -123,16 +123,22 @@ Security::setSalt(Configure::consume('Security.salt'));
 
 /*
  * Setup detectors for mobile and tablet.
+ * Reuse a single MobileDetect instance for efficiency
  */
-ServerRequest::addDetector('mobile', function ($request) {
-    $detector = new \Detection\MobileDetect();
+$mobileDetector = null;
+ServerRequest::addDetector('mobile', function ($request) use (&$mobileDetector) {
+    if ($mobileDetector === null) {
+        $mobileDetector = new \Detection\MobileDetect();
+    }
     
-    return $detector->isMobile();
+    return $mobileDetector->isMobile();
 });
-ServerRequest::addDetector('tablet', function ($request) {
-    $detector = new \Detection\MobileDetect();
+ServerRequest::addDetector('tablet', function ($request) use (&$mobileDetector) {
+    if ($mobileDetector === null) {
+        $mobileDetector = new \Detection\MobileDetect();
+    }
     
-    return $detector->isTablet();
+    return $mobileDetector->isTablet();
 });
 
 /*
