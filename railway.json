@@ -1,0 +1,10 @@
+{
+  "build": {
+    "builder": "buildpacks"
+  },
+  "deploy": {
+    "startCommand": "vendor/bin/heroku-php-nginx -C nginx.conf public/",
+    "restartPolicyType": "on_failure",
+    "restartPolicyMaxRetries": 5
+  }
+}

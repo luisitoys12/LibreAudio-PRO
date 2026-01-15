@@ -56,9 +56,66 @@ This script will:
 - **Default Admin**: admin@libreaudiopro.com / admin123
 - **Default User**: user@libreaudiopro.com / user123
 
-## Manual Setup
+## Deploy on Railway (Cloud)
 
-If you prefer manual setup:
+Railway is the easiest way to deploy LibreAudio PRO publicly. Get $5 USD free credits monthly.
+
+### 1. Prepare Repository
+
+Make sure everything is committed to GitHub:
+
+```bash
+git add .
+git commit -m "Prepare for Railway deployment"
+git push
+```
+
+### 2. Create Railway Account
+
+1. Visit https://railway.app
+2. Sign up with GitHub
+3. Authorize Railway access to your repositories
+
+### 3. Create New Project
+
+1. Click **"New Project"**
+2. Select **"Deploy from GitHub repo"**
+3. Select your **LibreAudio-PRO** repository
+
+### 4. Add MySQL Database
+
+1. In your Railway project, click **"+ New"**
+2. Select **"Database"** → **"MySQL"**
+3. Railway configures it automatically
+
+### 5. Set Environment Variables
+
+Go to your PHP service in Railway and set these variables in the **Variables** tab:
+
+```
+APP_NAME=LibreAudio
+DEBUG=false
+APP_DEFAULT_LOCALE=es_ES
+SECURITY_SALT=your_random_salt_here_12345_abcde
+DB_ENGINE=Mysql
+DB_HOST=${{ DATABASE_URL_REPLICA.HOSTNAME }}
+DB_PORT=${{ DATABASE_URL_REPLICA.PORT }}
+DB_NAME=${{ DATABASE_URL_REPLICA.PATH }}
+DB_USERNAME=${{ DATABASE_URL_REPLICA.USERNAME }}
+DB_PASSWORD=${{ DATABASE_URL_REPLICA.PASSWORD }}
+```
+
+### 6. Access Your Application
+
+Railway generates a public URL automatically. Visit it and login with:
+- **Admin**: admin@libreaudiopro.com / admin123
+- **User**: user@libreaudiopro.com / user123
+
+⚠️ **Change default credentials immediately in production!**
+
+## Manual Setup (Local)
+
+If you prefer manual setup locally:
 
 ### 1. Start Docker Containers
 
