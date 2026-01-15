@@ -1,25 +1,39 @@
-# CakePHP 3
+# CakePHP 4
 
 /vendor/*
 /config/app.php
+.env.local
 
 /tmp/cache/models/*
-!/tmp/cache/models/empty
+!/tmp/cache/models/.gitkeep
 /tmp/cache/persistent/*
-!/tmp/cache/persistent/empty
+!/tmp/cache/persistent/.gitkeep
 /tmp/cache/views/*
-!/tmp/cache/views/empty
+!/tmp/cache/views/.gitkeep
 /tmp/sessions/*
-!/tmp/sessions/empty
+!/tmp/sessions/.gitkeep
 /tmp/tests/*
-!/tmp/tests/empty
+!/tmp/tests/.gitkeep
 
 /logs/*
-!/logs/empty
+!/logs/.gitkeep
 
-# CakePHP 2
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 
-/app/tmp/*
-/app/Config/core.php
-/app/Config/database.php
-/vendors/*
+# OS
+.DS_Store
+Thumbs.db
+
+# Composer
+composer.phar
+/vendor/
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
