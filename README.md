@@ -63,25 +63,25 @@ If you prefer manual setup:
 ### 1. Start Docker Containers
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ### 2. Install Dependencies
 
 ```bash
-docker-compose exec php composer install
+docker compose exec php composer install
 ```
 
 ### 3. Run Migrations
 
 ```bash
-docker-compose exec php bin/cake migrations migrate
+docker compose exec php bin/cake migrations migrate
 ```
 
 ### 4. Seed Database
 
 ```bash
-docker-compose exec php bin/cake migrations seed
+docker compose exec php bin/cake migrations seed
 ```
 
 ## Project Structure
@@ -116,7 +116,7 @@ LibreAudio-PRO/
 │   ├── css/           # Stylesheets
 │   ├── js/            # JavaScript
 │   └── index.php      # Entry point
-├── docker-compose.yml  # Docker Compose configuration
+├── docker compose.yml  # Docker Compose configuration
 ├── bootstrap.sh        # Setup script
 └── README.md          # This file
 ```
@@ -166,7 +166,7 @@ LibreAudio-PRO/
 
 ```bash
 # Access PHP container
-docker-compose exec php bash
+docker compose exec php bash
 
 # Run migrations
 bin/cake migrations migrate
@@ -182,19 +182,19 @@ bin/cake cache clear_all
 
 ```bash
 # All services
-docker-compose logs -f
+docker compose logs -f
 
 # Specific service
-docker-compose logs -f php
-docker-compose logs -f nginx
-docker-compose logs -f mysql
+docker compose logs -f php
+docker compose logs -f nginx
+docker compose logs -f mysql
 ```
 
 ### Database Access
 
 ```bash
 # MySQL CLI
-docker-compose exec mysql mysql -u libreaudiopro -plibreaudiopro_pass libreaudiopro
+docker compose exec mysql mysql -u libreaudiopro -plibreaudiopro_pass libreaudiopro
 ```
 
 ## Production Deployment
@@ -207,7 +207,7 @@ Edit `.env` and update:
 
 ### 2. Update Database Credentials
 
-In `docker-compose.yml`, change:
+In `docker compose.yml`, change:
 - MySQL root password
 - Database password
 - Database name (optional)
@@ -218,7 +218,7 @@ After deployment, change the default admin password.
 
 ### 4. Configure Domain
 
-Update `docker-compose.yml` nginx port mapping or use a reverse proxy.
+Update `docker compose.yml` nginx port mapping or use a reverse proxy.
 
 ### 5. Enable HTTPS
 
@@ -240,7 +240,7 @@ Use a reverse proxy like Traefik or Nginx with Let's Encrypt certificates.
 
 ### Port Already in Use
 
-If port 8080 or 3306 is already in use, edit `docker-compose.yml` to use different ports.
+If port 8080 or 3306 is already in use, edit `docker compose.yml` to use different ports.
 
 ### Permission Issues
 
@@ -252,7 +252,7 @@ chmod -R 777 tmp logs
 
 Check that MySQL container is running:
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 ## Contributing

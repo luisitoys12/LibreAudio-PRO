@@ -22,12 +22,12 @@ if ! command_exists docker; then
 fi
 
 # Check for Docker Compose
-if ! command_exists docker-compose; then
-    echo -e "${RED}Error: Docker Compose is not installed${NC}"
+if ! command_exists docker; then
+    echo -e "${RED}Error: Docker is not installed or docker compose is not available${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}✓ Docker and Docker Compose are installed${NC}"
+echo -e "${GREEN}✓ Docker is installed${NC}"
 
 # Create necessary directories
 echo "Creating necessary directories..."
@@ -41,26 +41,26 @@ echo -e "${GREEN}✓ Directories created${NC}"
 
 # Start Docker containers
 echo "Starting Docker containers..."
-docker-compose up -d
+docker compose up -d
 
 echo -e "${YELLOW}Waiting for services to be ready...${NC}"
 sleep 10
 
 # Install Composer dependencies
 echo "Installing Composer dependencies..."
-docker-compose exec -T php composer install --no-interaction --prefer-dist
+docker compose exec -T php composer install --no-interaction --prefer-dist
 
 echo -e "${GREEN}✓ Dependencies installed${NC}"
 
 # Run database migrations
 echo "Running database migrations..."
-docker-compose exec -T php bin/cake migrations migrate
+docker compose exec -T php bin/cake migrations migrate
 
 echo -e "${GREEN}✓ Migrations completed${NC}"
 
 # Create seed data
 echo "Creating seed data..."
-docker-compose exec -T php bin/cake migrations seed
+docker compose exec -T php bin/cake migrations seed
 
 echo -e "${GREEN}✓ Seed data created${NC}"
 
@@ -76,7 +76,7 @@ echo "  Email: admin@libreaudiopro.com"
 echo "  Password: admin123"
 echo ""
 echo "Useful commands:"
-echo "  docker-compose up -d     # Start containers"
-echo "  docker-compose down      # Stop containers"
-echo "  docker-compose logs -f   # View logs"
+echo "  docker compose up -d     # Start containers"
+echo "  docker compose down      # Stop containers"
+echo "  docker compose logs -f   # View logs"
 echo ""

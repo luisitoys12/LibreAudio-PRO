@@ -50,6 +50,11 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/', ['controller' => 'Content', 'action' => 'index']);
 
         /*
+         * Health check endpoint
+         */
+        $builder->connect('/health', ['controller' => 'Health', 'action' => 'index']);
+
+        /*
          * Authentication routes
          */
         $builder->connect('/login', ['controller' => 'Users', 'action' => 'login']);
