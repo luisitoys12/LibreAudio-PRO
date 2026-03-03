@@ -1,0 +1,23 @@
+# Capacitor
+www/
+android/.gradle
+android/build
+android/app/build
+android/local.properties
+android/.idea
+android/*.iml
+android/app/release
+android/captures
+
+# Node
+node_modules/
+package-lock.json
+npm-debug.log*
+
+# Keystore (NUNCA commitear keystores!)
+*.keystore
+*.jks
+
+# OS
+.DS_Store
+Thumbs.db
