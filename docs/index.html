@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LibreAudio PRO</title>
+  
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#111827" />
+  <meta name="description" content="Directorio abierto de radios, podcasts y contenido de audio libre" />
+  
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  
+  <link rel="stylesheet" href="styles/main.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="header-content">
+      <div>
+        <h1 class="header-title">🎵 LibreAudio PRO</h1>
+        <p class="header-subtitle">Directorio abierto de radios, podcasts y audio libre</p>
+      </div>
+      <span class="badge badge-success">PWA</span>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">Explorar contenido</h2>
+        <p class="card-description">Busca y descubre radios, podcasts y contenido de audio gratuito</p>
+      </div>
+
+      <div class="search-bar">
+        <input 
+          id="searchInput" 
+          type="search" 
+          class="search-input" 
+          placeholder="Buscar por nombre, categoría o tipo..." 
+          aria-label="Buscar contenido"
+        />
+        <button class="btn btn-secondary" onclick="resetFilter()">Limpiar</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">Contenido disponible</h2>
+        <p class="card-description">Los datos se almacenan localmente en tu dispositivo</p>
+      </div>
+
+      <div class="action-bar">
+        <button class="btn btn-primary" onclick="openAddDialog()">
+          <span class="btn-icon">+</span>
+          Agregar contenido
+        </button>
+        <button class="btn btn-secondary" onclick="exportData()">
+          <span class="btn-icon">⬇</span>
+          Exportar
+        </button>
+        <button class="btn btn-secondary" onclick="importData()">
+          <span class="btn-icon">⬆</span>
+          Importar
+        </button>
+      </div>
+
+      <div id="contentList" class="content-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">Acerca de LibreAudio PRO</h2>
+      </div>
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="info-icon">📱</span>
+          <div>
+            <h3 class="info-title">Progressive Web App</h3>
+            <p class="info-text">Instálala en tu dispositivo y úsala sin conexión</p>
+          </div>
+        </div>
+        <div class="info-item">
+          <span class="info-icon">🔓</span>
+          <div>
+            <h3 class="info-title">Código abierto</h3>
+            <p class="info-text">Proyecto libre bajo licencia MIT</p>
+          </div>
+        </div>
+        <div class="info-item">
+          <span class="info-icon">💾</span>
+          <div>
+            <h3 class="info-title">Almacenamiento local</h3>
+            <p class="info-text">Tus datos permanecen en tu dispositivo</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>LibreAudio PRO v1.0 – PWA Edition</p>
+    <p>Democratizando el acceso al audio libre 🎧</p>
+  </footer>
+
+  <!-- Dialog para agregar contenido -->
+  <dialog id="addDialog" class="dialog">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h3 class="dialog-title">Agregar nuevo contenido</h3>
+        <button class="dialog-close" onclick="document.getElementById('addDialog').close()">&times;</button>
+      </div>
+      
+      <form method="dialog" class="dialog-form">
+        <div class="form-group">
+          <label class="form-label" for="addName">Nombre *</label>
+          <input 
+            id="addName" 
+            class="form-input" 
+            type="text" 
+            placeholder="Ej: Radio Estación KUS" 
+            required 
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="addUrl">URL del contenido *</label>
+          <input 
+            id="addUrl" 
+            class="form-input" 
+            type="url" 
+            placeholder="https://ejemplo.com/stream" 
+            required 
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="addType">Tipo de contenido *</label>
+          <select id="addType" class="form-select">
+            <option value="radio">Radio en vivo</option>
+            <option value="podcast">Podcast</option>
+            <option value="musica">Música / Playlist</option>
+            <option value="audiolibro">Audiolibro</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="addCategory">Categoría / Género</label>
+          <input 
+            id="addCategory" 
+            class="form-input" 
+            type="text" 
+            placeholder="Ej: Rock, Noticias, Tecnología" 
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="addDescription">Descripción</label>
+          <textarea 
+            id="addDescription" 
+            class="form-textarea" 
+            rows="3" 
+            placeholder="Breve descripción del contenido..."
+          ></textarea>
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('addDialog').close()">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="saveNewItem(event)">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <input id="importFile" type="file" accept="application/json" style="display:none" />
+
+  <script src="scripts/app.js"></script>
+</body>
+</html>
