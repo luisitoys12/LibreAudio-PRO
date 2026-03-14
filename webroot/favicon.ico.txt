@@ -1,2 +1,0 @@
-This is a placeholder file. In production, replace this with an actual favicon.ico file.
-You can generate a favicon at: https://favicon.io/ or https://realfavicongenerator.net/
