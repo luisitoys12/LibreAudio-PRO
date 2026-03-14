@@ -28,16 +28,14 @@
 
   <script>
     window.SUPABASE_URL  = 'https://woqkueabensezxjvlzjr.supabase.co';
-    window.SUPABASE_ANON = 'sb_publishable_dQeAB8M2FuR0zdweik9Ttw_jVaOahwj';
+    window.SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvcWt1ZWFiZW5zZXp4anZsempyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NTk2NDcsImV4cCI6MjA4OTAzNTY0N30.O_rPjlmRYTRTT54lEUvd6gluOYfmzRaUsabQ_hANGl4';
   </script>
 </head>
 <body>
 
 <div id="app">
-  <!-- NAV → renderNav() lo llena dinámicamente -->
   <header id="nav" role="banner"></header>
 
-  <!-- MAIN → el router inyecta cada página aquí -->
   <main id="main" role="main">
     <div class="loading-screen">
       <div class="spinner"></div>
@@ -45,17 +43,15 @@
     </div>
   </main>
 
-  <!-- FOOTER -->
   <footer>
     <p>
-      LibreAudio PRO &copy; 2025 · Open Source · 
+      LibreAudio PRO &copy; 2025 · Open Source ·
       <a href="https://github.com/luisitoys12/LibreAudio-PRO" target="_blank" rel="noopener">GitHub</a>
       · Hecho con 💜 por la comunidad
     </p>
   </footer>
 </div>
 
-<!-- App entrypoint (ES Module) -->
 <script type="module">
   import { init } from './app.js';
   init();
