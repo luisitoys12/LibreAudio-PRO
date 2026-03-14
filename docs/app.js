@@ -57,14 +57,16 @@ async function loadProfile() {
 export function router() {
   const hash = location.hash || '#/';
   const routes = {
-    '#/':          renderHome,
-    '#/explorar':  renderExplorer,
-    '#/enviar':    renderSubmit,
-    '#/mis-envios':renderMine,
-    '#/admin':     renderAdmin,
-    '#/perfil':    renderProfile,
-    '#/login':     renderLogin,
-    '#/register':  renderRegister,
+    '#/':               renderHome,
+    '#/explorar':       renderExplorer,
+    '#/enviar':         renderSubmit,
+    '#/mis-envios':     renderMine,
+    '#/admin':          renderAdmin,
+    '#/perfil':         renderProfile,
+    '#/login':          renderLogin,
+    '#/register':       renderRegister,
+    '#/recuperar':      renderForgotPassword,
+    '#/nueva-password': renderNewPassword,
   };
 
   const handler = routes[hash] || render404;
@@ -744,7 +746,10 @@ function renderLogin() {
             <input type="email" name="email" required placeholder="tu@email.com" />
           </div>
           <div class="form-group">
-            <label>Contraseña</label>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <label>Contraseña</label>
+              <a href="#/recuperar" style="font-size:.8rem;color:var(--purple-light)">¿Olvidaste tu contraseña?</a>
+            </div>
             <input type="password" name="password" required placeholder="••••••••" />
           </div>
           <button type="submit" class="btn btn-primary btn-lg" id="loginBtn">Entrar</button>
@@ -758,7 +763,7 @@ function renderLogin() {
   document.getElementById('googleBtn').addEventListener('click', async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + window.location.pathname }
+      options: { redirectTo: location.origin + location.pathname }
     });
   });
 
@@ -766,17 +771,25 @@ function renderLogin() {
     e.preventDefault();
     const btn = document.getElementById('loginBtn');
     btn.disabled = true; btn.textContent = 'Entrando…';
-    const fd = new FormData(e.target);
 
+    const fd = new FormData(e.target);
     const { error } = await supabase.auth.signInWithPassword({
-      email: fd.get('email'), password: fd.get('password')
+      email:    fd.get('email'),
+      password: fd.get('password'),
     });
 
     if (error) {
-      showToast('Credenciales incorrectas', 'error');
+      let msg = 'Error al iniciar sesión';
+      if (error.message.includes('Invalid login credentials')) {
+        msg = 'Correo o contraseña incorrectos. ¿Olvidaste tu contraseña?';
+      } else if (error.message.includes('Email not confirmed')) {
+        msg = 'Debes confirmar tu correo antes de entrar. Revisa tu bandeja.';
+      } else {
+        msg = error.message;
+      }
+      showToast(msg, 'error');
       btn.disabled = false; btn.textContent = 'Entrar';
     }
-    // el listener onAuthStateChange maneja el redirect
   });
 }
 
@@ -795,9 +808,9 @@ function renderRegister() {
           </svg>
           <span>LibreAudio PRO</span>
         </div>
-        <h1>Crea tu cuenta</h1>
+        <h1>Crear cuenta gratis</h1>
 
-        <button id="googleBtn" class="btn btn-google btn-lg">
+        <button id="googleRegBtn" class="btn btn-google btn-lg">
           <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
           Registrarse con Google
         </button>
@@ -808,8 +821,8 @@ function renderRegister() {
           <div class="form-group">
             <label>Nombre de usuario <span class="req">*</span></label>
             <input type="text" name="username" required minlength="3" maxlength="30"
-                   placeholder="miradio2025" pattern="[a-zA-Z0-9_]+" />
-            <p class="field-hint">Solo letras, números y guiones bajos</p>
+                   pattern="[a-zA-Z0-9_]+" placeholder="mi_usuario" />
+            <p class="field-hint">Solo letras, números y guión bajo</p>
           </div>
           <div class="form-group">
             <label>Correo electrónico <span class="req">*</span></label>
@@ -819,35 +832,38 @@ function renderRegister() {
             <label>Contraseña <span class="req">*</span></label>
             <input type="password" name="password" required minlength="8" placeholder="Mínimo 8 caracteres" />
           </div>
-          <button type="submit" class="btn btn-primary btn-lg" id="regBtn">Crear cuenta</button>
+          <button type="submit" class="btn btn-primary btn-lg" id="registerBtn">Crear cuenta</button>
         </form>
 
-        <p class="auth-switch">¿Ya tienes cuenta? <a href="#/login">Inicia sesión</a></p>
+        <p class="auth-switch">¿Ya tienes cuenta? <a href="#/login">Entrar</a></p>
       </div>
     </div>
   `);
 
-  document.getElementById('googleBtn').addEventListener('click', async () => {
+  document.getElementById('googleRegBtn').addEventListener('click', async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + window.location.pathname }
+      options: { redirectTo: location.origin + location.pathname }
     });
   });
 
   document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const btn = document.getElementById('regBtn');
+    const btn = document.getElementById('registerBtn');
     btn.disabled = true; btn.textContent = 'Creando cuenta…';
+
     const fd = new FormData(e.target);
+    const email    = fd.get('email');
+    const password = fd.get('password');
+    const username = fd.get('username').trim();
 
     const { error } = await supabase.auth.signUp({
-      email: fd.get('email'),
-      password: fd.get('password'),
-      options: { data: { username: fd.get('username').trim() } }
+      email, password,
+      options: { data: { username } }
     });
 
     if (error) {
-      showToast('Error: ' + error.message, 'error');
+      showToast(error.message, 'error');
       btn.disabled = false; btn.textContent = 'Crear cuenta';
     } else {
       showToast('¡Cuenta creada! Revisa tu correo para confirmar.');
@@ -856,13 +872,141 @@ function renderRegister() {
   });
 }
 
+// ── RECUPERAR CONTRASEÑA ───────────────────────────────────
+function renderForgotPassword() {
+  if (state.session) { navigate('#/'); return; }
+
+  setMain(`
+    <div class="auth-page">
+      <div class="auth-card">
+        <div class="auth-logo">
+          <svg width="40" height="40" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="14" fill="#6C3EF7"/>
+            <path d="M9 10a5 5 0 1 1 10 0v8a5 5 0 0 1-10 0V10z" fill="white" opacity=".9"/>
+            <circle cx="14" cy="14" r="3" fill="#6C3EF7"/>
+          </svg>
+          <span>LibreAudio PRO</span>
+        </div>
+        <h1>Restablecer contraseña</h1>
+        <p class="form-subtitle">Te enviaremos un enlace a tu correo para que puedas crear una nueva contraseña.</p>
+
+        <form id="forgotForm" class="form">
+          <div class="form-group">
+            <label>Correo electrónico</label>
+            <input type="email" name="email" required placeholder="tu@email.com" id="forgotEmail" />
+          </div>
+          <button type="submit" class="btn btn-primary btn-lg" id="forgotBtn">
+            Enviar enlace de recuperación
+          </button>
+        </form>
+
+        <p class="auth-switch"><a href="#/login">← Volver al inicio de sesión</a></p>
+      </div>
+    </div>
+  `);
+
+  document.getElementById('forgotForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('forgotBtn');
+    btn.disabled = true; btn.textContent = 'Enviando…';
+
+    const email = document.getElementById('forgotEmail').value.trim();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${location.origin}${location.pathname}#/nueva-password`,
+    });
+
+    if (error) {
+      showToast('Error: ' + error.message, 'error');
+      btn.disabled = false; btn.textContent = 'Enviar enlace de recuperación';
+    } else {
+      setMain(`
+        <div class="auth-page">
+          <div class="auth-card" style="text-align:center">
+            <div style="font-size:3rem;margin-bottom:1rem">📧</div>
+            <h1>¡Correo enviado!</h1>
+            <p>Revisa tu bandeja de entrada (y spam) en <strong>${email}</strong>.<br>
+               Haz clic en el enlace del correo para crear tu nueva contraseña.</p>
+            <a href="#/login" class="btn btn-primary" style="margin-top:1.5rem">Volver al login</a>
+          </div>
+        </div>
+      `);
+    }
+  });
+}
+
+// ── NUEVA CONTRASEÑA ───────────────────────────────────────
+async function renderNewPassword() {
+  // Supabase maneja el token automáticamente vía onAuthStateChange
+  // Cuando el usuario llega desde el email, ya tiene sesión temporal
+  setMain(`
+    <div class="auth-page">
+      <div class="auth-card">
+        <div class="auth-logo">
+          <svg width="40" height="40" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="14" fill="#6C3EF7"/>
+            <path d="M9 10a5 5 0 1 1 10 0v8a5 5 0 0 1-10 0V10z" fill="white" opacity=".9"/>
+            <circle cx="14" cy="14" r="3" fill="#6C3EF7"/>
+          </svg>
+          <span>LibreAudio PRO</span>
+        </div>
+        <h1>Nueva contraseña</h1>
+        <p class="form-subtitle">Elige una contraseña segura de al menos 8 caracteres.</p>
+
+        <form id="newPassForm" class="form">
+          <div class="form-group">
+            <label>Nueva contraseña <span class="req">*</span></label>
+            <input type="password" name="password" id="newPass" required minlength="8"
+                   placeholder="Mínimo 8 caracteres" />
+          </div>
+          <div class="form-group">
+            <label>Confirmar contraseña <span class="req">*</span></label>
+            <input type="password" name="password2" id="newPass2" required minlength="8"
+                   placeholder="Repite la contraseña" />
+          </div>
+          <button type="submit" class="btn btn-primary btn-lg" id="newPassBtn">
+            Guardar nueva contraseña
+          </button>
+        </form>
+      </div>
+    </div>
+  `);
+
+  document.getElementById('newPassForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('newPassBtn');
+    const p1  = document.getElementById('newPass').value;
+    const p2  = document.getElementById('newPass2').value;
+
+    if (p1 !== p2) {
+      showToast('Las contraseñas no coinciden', 'error');
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Guardando…';
+
+    const { error } = await supabase.auth.updateUser({ password: p1 });
+
+    if (error) {
+      showToast('Error: ' + error.message, 'error');
+      btn.disabled = false; btn.textContent = 'Guardar nueva contraseña';
+    } else {
+      showToast('¡Contraseña actualizada correctamente!');
+      await supabase.auth.signOut();
+      navigate('#/login');
+    }
+  });
+}
+
 // ── 404 ────────────────────────────────────────────────────
 function render404() {
   setMain(`
-    <div class="empty-state" style="margin-top:4rem">
-      <span class="empty-icon">🔊</span>
-      <h2>Página no encontrada</h2>
-      <a href="#/" class="btn btn-primary">Ir al inicio</a>
+    <div class="auth-page">
+      <div class="auth-card" style="text-align:center">
+        <div style="font-size:4rem">🔍</div>
+        <h1>Página no encontrada</h1>
+        <p>La ruta <code>${location.hash}</code> no existe.</p>
+        <a href="#/" class="btn btn-primary">Ir al inicio</a>
+      </div>
     </div>
   `);
 }
