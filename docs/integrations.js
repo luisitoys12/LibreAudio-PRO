@@ -65,20 +65,20 @@ export const TuneIn = {
     return items
       .filter(i => i.type === 'audio' || i.type === 'link')
       .map(i => ({
-        source:     'tunein',
-        id:         i.guide_id || i.preset_id || '',
-        title:      i.text || '',
-        subtitle:   i.subtext || '',
-        cover:      i.image || '',
-        genre:      i.genre_id || '',
+        source:    'tunein',
+        id:        i.guide_id || i.preset_id || '',
+        title:     i.text || '',
+        subtitle:  i.subtext || '',
+        cover:     i.image || '',
+        genre:     i.genre_id || '',
         nowPlaying: i.playing || i.current_track || '',
-        streamUrl:  i.URL || '',
-        directUrl:  '',
+        streamUrl: i.URL || '',
+        directUrl: '',
         reliability: i.reliability || 0,
-        bitrate:    i.bitrate || '',
-        type:       i.item === 'station' ? 'radio' : (i.item === 'show' ? 'podcast' : 'radio'),
-        panelType:  'tunein',
-        country:    i.locale || '',
+        bitrate:   i.bitrate || '',
+        type:      i.item === 'station' ? 'radio' : (i.item === 'show' ? 'podcast' : 'radio'),
+        panelType: 'tunein',
+        country:   i.locale || '',
       }));
   },
 
@@ -88,7 +88,7 @@ export const TuneIn = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// iHEARTRADIO API (endpoints públicos no oficiales)
+// iHEARTRADIO API
 // ─────────────────────────────────────────────────────────────
 export const iHeart = {
   BASE: 'https://api.iheart.com/api/v3',
@@ -97,10 +97,10 @@ export const iHeart = {
   async search(query, maxResults = 12) {
     try {
       const params = new URLSearchParams({
-        keyword:              query,
-        maxRows:              maxResults,
-        startIndex:           0,
-        tabs:                 'stations,podcasts',
+        keyword:         query,
+        maxRows:         maxResults,
+        startIndex:      0,
+        tabs:            'stations,podcasts',
         boostPartnerStations: 'true',
       });
       const url = `${this.BASE}/search/all?${params}`;
@@ -140,7 +140,6 @@ export const iHeart = {
 
   _parseResults(data) {
     const results = [];
-
     const stations = data?.results?.stations?.results || data?.stations || [];
     stations.forEach(s => {
       results.push({
@@ -159,7 +158,6 @@ export const iHeart = {
         nowPlaying: '',
       });
     });
-
     const podcasts = data?.results?.podcasts?.results || data?.podcasts || [];
     podcasts.forEach(p => {
       results.push({
@@ -178,7 +176,6 @@ export const iHeart = {
         nowPlaying: '',
       });
     });
-
     return results;
   },
 };
@@ -192,10 +189,10 @@ export const Dailymotion = {
   async search(query, limit = 10) {
     try {
       const params = new URLSearchParams({
-        search: query,
-        fields: 'id,title,description,thumbnail_url,channel,duration,owner,language,country',
+        search:  query,
+        fields:  'id,title,description,thumbnail_url,channel,duration,owner,language,country',
         limit,
-        sort:   'relevance',
+        sort:    'relevance',
       });
       const res = await fetch(`${this.BASE}/videos?${params}`);
       const data = await res.json();
@@ -203,6 +200,24 @@ export const Dailymotion = {
     } catch (e) {
       console.warn('Dailymotion search error:', e);
       return [];
+    }
+  },
+
+  async getPopular(limit = 12) {
+    try {
+      const params = new URLSearchParams({
+        fields: 'id,title,description,thumbnail_url,channel,duration,owner,language,country',
+        limit,
+        sort:   'trending',
+      });
+      const res = await fetch(`${this.BASE}/videos?${params}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const list = data?.list || [];
+      return list.length ? this._parseVideos(list, false) : this.search('noticias', limit);
+    } catch (e) {
+      console.warn('Dailymotion getPopular error:', e);
+      return this.search('videos', limit).catch(() => []);
     }
   },
 
@@ -215,10 +230,14 @@ export const Dailymotion = {
         'live_onair': 'true',
       });
       const res = await fetch(`${this.BASE}/videos?${params}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      return this._parseVideos(data?.list || [], true);
+      const list = data?.list || [];
+      if (!list.length) return this.getPopular(limit);
+      return this._parseVideos(list, true);
     } catch (e) {
-      return [];
+      console.warn('Dailymotion getLive error:', e);
+      return this.getPopular(limit);
     }
   },
 
@@ -233,19 +252,19 @@ export const Dailymotion = {
 
   _parseVideos(list, isLive = false) {
     return list.map(v => ({
-      source:      'dailymotion',
-      id:          v.id,
-      title:       v.title || '',
-      subtitle:    v.channel || '',
-      cover:       v.thumbnail_url || '',
-      genre:       v.channel || '',
-      country:     v.country || '',
-      streamUrl:   '',
-      embedUrl:    this.embedUrl(v.id),
+      source:    'dailymotion',
+      id:        v.id,
+      title:     v.title || '',
+      subtitle:  v.channel || '',
+      cover:     v.thumbnail_url || '',
+      genre:     v.channel || '',
+      country:   v.country || '',
+      streamUrl: '',
+      embedUrl:  this.embedUrl(v.id),
       externalUrl: `https://www.dailymotion.com/video/${v.id}`,
-      type:        isLive ? 'tv_en_vivo' : 'tv_grabado',
-      panelType:   'dailymotion',
-      nowPlaying:  '',
+      type:      isLive ? 'tv_en_vivo' : 'tv_grabado',
+      panelType: 'dailymotion',
+      nowPlaying: '',
     }));
   },
 };
@@ -266,7 +285,7 @@ export const PlayerResolver = {
     if (url.includes('iheart.com'))    return 'iheart';
     if (url.includes('tunein.com'))    return 'tunein';
     if (url.includes('zeno.fm'))       return 'zenofm';
-    if (url.includes('azuracast') || url.includes('/public/')) return 'azuracast';
+    if (url.includes('azuracast') || url.includes('/public/'))    return 'azuracast';
     if (url.endsWith('.m3u8') || url.includes('.m3u8?'))  return 'hls';
     if (url.match(/\.(mp3|aac|ogg|flac|opus)(\?|$)/i))   return 'audio';
     return 'iframe';
@@ -335,7 +354,7 @@ export const PlayerResolver = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// HLS.js — carga la librería dinámicamente
+// HLS.js helper
 // ─────────────────────────────────────────────────────────────
 export async function loadHlsJs() {
   if (window.Hls) return window.Hls;
@@ -349,7 +368,7 @@ export async function loadHlsJs() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// SOCIAL MEDIA helpers
+// SOCIAL MEDIA
 // ─────────────────────────────────────────────────────────────
 export const Social = {
 
@@ -369,20 +388,20 @@ export const Social = {
 
   badge(network) {
     const badges = {
-      youtube:     { icon: '▶️',  label: 'YouTube',     color: '#FF0000' },
-      twitch:      { icon: '🟣',  label: 'Twitch',      color: '#9146FF' },
-      dailymotion: { icon: '🔵',  label: 'Dailymotion', color: '#0090D0' },
-      facebook:    { icon: '👥',  label: 'Facebook',    color: '#1877F2' },
-      instagram:   { icon: '📸',  label: 'Instagram',   color: '#E1306C' },
-      tiktok:      { icon: '🎵',  label: 'TikTok',      color: '#010101' },
-      twitter:     { icon: '🐦',  label: 'X/Twitter',   color: '#1DA1F2' },
-      kick:        { icon: '🟢',  label: 'Kick',        color: '#53FC18' },
-      rumble:      { icon: '🔴',  label: 'Rumble',      color: '#85C742' },
-      iheart:      { icon: '❤️',  label: 'iHeart',      color: '#C6002B' },
-      tunein:      { icon: '📻',  label: 'TuneIn',      color: '#00A0EE' },
-      azuracast:   { icon: '⚡',  label: 'AzuraCast',   color: '#528FC8' },
-      sonicpanel:  { icon: '🎵',  label: 'SonicPanel',  color: '#2563EB' },
-      zenofm:      { icon: '📡',  label: 'ZenoFM',      color: '#7C3AED' },
+      youtube:     { icon: '▶️', label: 'YouTube',    color: '#FF0000' },
+      twitch:      { icon: '🟣', label: 'Twitch',     color: '#9146FF' },
+      dailymotion: { icon: '🔵', label: 'Dailymotion', color: '#0090D0' },
+      facebook:    { icon: '👥', label: 'Facebook',   color: '#1877F2' },
+      instagram:   { icon: '📸', label: 'Instagram',  color: '#E1306C' },
+      tiktok:      { icon: '🎵', label: 'TikTok',     color: '#010101' },
+      twitter:     { icon: '🐦', label: 'X/Twitter',  color: '#1DA1F2' },
+      kick:        { icon: '🟢', label: 'Kick',       color: '#53FC18' },
+      rumble:      { icon: '🔴', label: 'Rumble',     color: '#85C742' },
+      iheart:      { icon: '❤️', label: 'iHeart',     color: '#C6002B' },
+      tunein:      { icon: '📻', label: 'TuneIn',     color: '#00A0EE' },
+      azuracast:   { icon: '⚡', label: 'AzuraCast',  color: '#528FC8' },
+      sonicpanel:  { icon: '🎵', label: 'SonicPanel', color: '#2563EB' },
+      zenofm:      { icon: '📡', label: 'ZenoFM',     color: '#7C3AED' },
     };
     return badges[network] || { icon: '🔗', label: network || 'Web', color: '#6B7280' };
   },
@@ -400,4 +419,73 @@ export const Social = {
   },
 };
 
-export default { TuneIn, iHeart, Dailymotion, PlayerResolver, Social, loadHlsJs };
+
+// ─────────────────────────────────────────────────────────────
+// METADATA — AzuraCast / SonicPanel / ZenoFM now-playing
+// ─────────────────────────────────────────────────────────────
+export const Metadata = {
+
+  async azuracast(baseUrl, stationSlug) {
+    try {
+      const apiUrl = `${baseUrl.replace(/\/$/, '')}/api/nowplaying/${stationSlug}`;
+      const res = await fetch(apiUrl, { signal: AbortSignal.timeout(4000) });
+      if (!res.ok) throw new Error('no ok');
+      const data = await res.json();
+      return {
+        song:     data?.now_playing?.song?.title || '',
+        artist:   data?.now_playing?.song?.artist || '',
+        album:    data?.now_playing?.song?.album || '',
+        cover:    data?.now_playing?.song?.art || '',
+        listeners: data?.listeners?.current || 0,
+        isLive:   data?.live?.is_live || false,
+        streamer: data?.live?.streamer_name || '',
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  parseAzuraCastUrl(url) {
+    if (!url) return null;
+    const m = url.match(/(?:\/public\/|\/api\/nowplaying\/)([^/?#]+)/);
+    if (!m) return null;
+    const base = url.split('/public/')[0] || url.split('/api/')[0];
+    return { base, slug: m[1] };
+  },
+
+  async sonicpanel(statsUrl) {
+    try {
+      const res = await fetch(statsUrl, { signal: AbortSignal.timeout(4000) });
+      if (!res.ok) throw new Error('no ok');
+      const data = await res.json();
+      return {
+        song:      data?.currentsong || data?.title || '',
+        artist:    data?.artist || '',
+        listeners: data?.currentlisteners || data?.listeners || 0,
+        isLive:    false,
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  async zenofm(streamUrl) {
+    return null;
+  },
+
+  async fetch(panelType, streamUrl, embedUrl) {
+    if (panelType === 'azuracast') {
+      const parsed = this.parseAzuraCastUrl(embedUrl || streamUrl);
+      if (parsed) return this.azuracast(parsed.base, parsed.slug);
+    }
+    if (panelType === 'sonicpanel') {
+      if (streamUrl) {
+        const statsUrl = streamUrl.replace(/;.*$/, '').replace(/stream.*$/, 'stats?json=1');
+        return this.sonicpanel(statsUrl);
+      }
+    }
+    return null;
+  },
+};
+
+export default { TuneIn, iHeart, Dailymotion, PlayerResolver, Social, loadHlsJs, Metadata };
