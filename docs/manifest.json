@@ -1,24 +1,25 @@
 {
   "name": "LibreAudio PRO",
   "short_name": "LibreAudio",
-  "description": "Directorio abierto de radios, podcasts y audio libre",
-  "lang": "es-MX",
-  "start_url": ".",
-  "scope": ".",
+  "description": "Directorio libre de radio, podcasts y audio",
+  "start_url": "./",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#020617",
-  "theme_color": "#111827",
+  "background_color": "#0D0D14",
+  "theme_color": "#6C3EF7",
+  "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "https://ui-avatars.com/api/?name=LA&size=192&background=6C3EF7&color=fff&bold=true",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "https://ui-avatars.com/api/?name=LA&size=512&background=6C3EF7&color=fff&bold=true",
       "sizes": "512x512",
       "type": "image/png"
     }
-  ]
+  ],
+  "categories": ["music", "entertainment"],
+  "lang": "es",
+  "dir": "ltr"
 }

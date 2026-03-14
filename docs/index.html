@@ -2,357 +2,68 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>LibreAudio PRO – PWA</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LibreAudio PRO — Directorio libre de radio, podcasts y audio</title>
+  <meta name="description" content="Descubre y comparte radios, podcasts y audio libre. Plataforma abierta y gratuita para la comunidad hispanohablante." />
+  <meta name="theme-color" content="#6C3EF7" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="LibreAudio PRO" />
+  <meta property="og:description" content="El directorio libre de radio, podcasts y audio independiente." />
+  <meta property="og:type" content="website" />
+
+  <!-- Favicon SVG -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%236C3EF7'/><text y='.9em' font-size='70' x='50%' dominant-baseline='middle' text-anchor='middle'>🎵</text></svg>" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- PWA Manifest -->
   <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#111827" />
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #020617;
-      color: #e5e7eb;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-    header {
-      padding: 1rem 1.5rem;
-      background: #0f172a;
-      border-bottom: 1px solid #1f2937;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    header h1 {
-      font-size: 1.1rem;
-      font-weight: 600;
-    }
-    header span {
-      font-size: 0.8rem;
-      color: #9ca3af;
-    }
-    main {
-      flex: 1;
-      padding: 1.5rem;
-      max-width: 960px;
-      width: 100%;
-      margin: 0 auto;
-    }
-    .tag {
-      display: inline-block;
-      padding: 0.15rem 0.5rem;
-      border-radius: 999px;
-      font-size: 0.7rem;
-      background: #22c55e1a;
-      color: #22c55e;
-      border: 1px solid #22c55e33;
-      margin-left: 0.5rem;
-    }
-    .card {
-      background: #020617;
-      border-radius: 0.75rem;
-      border: 1px solid #1f2937;
-      padding: 1rem 1.25rem;
-      margin-bottom: 1rem;
-    }
-    .card h2 {
-      font-size: 0.95rem;
-      margin-bottom: 0.35rem;
-    }
-    .card p {
-      font-size: 0.85rem;
-      color: #9ca3af;
-    }
-    .list {
-      margin-top: 1rem;
-      display: grid;
-      gap: 0.6rem;
-    }
-    .item {
-      padding: 0.75rem 0.85rem;
-      border-radius: 0.6rem;
-      background: #020617;
-      border: 1px solid #111827;
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-    .item-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .item-title {
-      font-size: 0.9rem;
-      font-weight: 500;
-    }
-    .item-meta {
-      font-size: 0.7rem;
-      color: #9ca3af;
-    }
-    .pill {
-      font-size: 0.65rem;
-      padding: 0.15rem 0.45rem;
-      border-radius: 999px;
-      background: #1d283a;
-      color: #9ca3af;
-    }
-    .pill.live {
-      background: #b91c1c33;
-      color: #fecaca;
-    }
-    .pill.podcast {
-      background: #4c1d9533;
-      color: #ede9fe;
-    }
-    .pill.music {
-      background: #065f4633;
-      color: #a7f3d0;
-    }
-    .actions {
-      display: flex;
-      gap: 0.4rem;
-      margin-top: 0.4rem;
-    }
-    .btn {
-      border-radius: 999px;
-      border: 1px solid #4b5563;
-      background: #020617;
-      color: #e5e7eb;
-      font-size: 0.75rem;
-      padding: 0.3rem 0.8rem;
-      cursor: pointer;
-    }
-    .btn.primary {
-      background: #22c55e;
-      border-color: #22c55e;
-      color: #022c22;
-    }
-    .search-bar {
-      margin-top: 0.8rem;
-      display: flex;
-      gap: 0.5rem;
-    }
-    .search-bar input {
-      flex: 1;
-      border-radius: 999px;
-      border: 1px solid #374151;
-      background: #020617;
-      color: #e5e7eb;
-      padding: 0.45rem 0.8rem;
-      font-size: 0.8rem;
-      outline: none;
-    }
-    .search-bar button {
-      border-radius: 999px;
-      border: 1px solid #4b5563;
-      background: #020617;
-      color: #e5e7eb;
-      font-size: 0.8rem;
-      padding: 0.45rem 0.8rem;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-    footer {
-      padding: 0.8rem 1.5rem;
-      font-size: 0.75rem;
-      color: #6b7280;
-      border-top: 1px solid #111827;
-      text-align: center;
-      background: #020617;
-    }
-  </style>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- ⚠️ CONFIGURA AQUÍ TUS CREDENCIALES DE SUPABASE
+       Ve a supabase.com → tu proyecto → Settings → API
+       Copia la URL y la anon key pública (NUNCA la service_role key)
+  -->
+  <script>
+    window.SUPABASE_URL  = 'https://TU_PROYECTO.supabase.co';
+    window.SUPABASE_ANON = 'TU_ANON_KEY_PUBLICA';
+  </script>
 </head>
 <body>
-  <header>
-    <div>
-      <h1>LibreAudio PRO</h1>
-      <span>Directorio abierto de radios, podcasts y audio libre</span>
+
+<div id="app">
+  <!-- NAV → renderNav() lo llena dinámicamente -->
+  <header id="nav" role="banner"></header>
+
+  <!-- MAIN → el router inyecta cada página aquí -->
+  <main id="main" role="main">
+    <div class="loading-screen">
+      <div class="spinner"></div>
+      <p>Iniciando LibreAudio PRO…</p>
     </div>
-    <span class="tag">PWA</span>
-  </header>
-
-  <main>
-    <section class="card">
-      <h2>Explora contenido</h2>
-      <p>PWA de LibreAudio PRO para GitHub Pages y dispositivos móviles.</p>
-      <div class="search-bar">
-        <input id="searchInput" type="search" placeholder="Buscar..." />
-        <button onclick="resetFilter()">Limpiar</button>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Contenido destacado</h2>
-      <div class="actions" style="margin-bottom: 0.5rem;">
-        <button class="btn primary" onclick="openAddDialog()">Agregar</button>
-        <button class="btn" onclick="exportData()">Exportar</button>
-        <button class="btn" onclick="importData()">Importar</button>
-      </div>
-      <div id="contentList" class="list"></div>
-    </section>
   </main>
 
-  <footer>LibreAudio PRO – PWA estática</footer>
+  <!-- FOOTER -->
+  <footer>
+    <p>
+      LibreAudio PRO &copy; 2025 · Open Source · 
+      <a href="https://github.com/luisitoys12/LibreAudio-PRO" target="_blank" rel="noopener">GitHub</a>
+      · Hecho con 💜 por la comunidad
+    </p>
+  </footer>
+</div>
 
-  <dialog id="addDialog">
-    <form method="dialog" style="padding: 1rem 1.25rem; border-radius: 0.75rem; border: 1px solid #1f2937; background:#020617; color:#e5e7eb; min-width: 280px;">
-      <h3 style="font-size:0.95rem; margin-bottom:0.7rem;">Nuevo contenido</h3>
-      <label style="display:block; font-size:0.8rem; margin-bottom:0.35rem;">
-        Nombre<br>
-        <input id="addName" required style="width:100%; margin-top:0.2rem; font-size:0.8rem; padding:0.35rem 0.6rem; border-radius:0.4rem; border:1px solid #374151; background:#020617; color:#e5e7eb;" />
-      </label>
-      <label style="display:block; font-size:0.8rem; margin-bottom:0.35rem;">
-        URL<br>
-        <input id="addUrl" required style="width:100%; margin-top:0.2rem; font-size:0.8rem; padding:0.35rem 0.6rem; border-radius:0.4rem; border:1px solid #374151; background:#020617; color:#e5e7eb;" />
-      </label>
-      <label style="display:block; font-size:0.8rem; margin-bottom:0.35rem;">
-        Tipo<br>
-        <select id="addType" style="width:100%; margin-top:0.2rem; font-size:0.8rem; padding:0.35rem 0.6rem; border-radius:0.4rem; border:1px solid #374151; background:#020617; color:#e5e7eb;">
-          <option value="radio">Radio</option>
-          <option value="podcast">Podcast</option>
-          <option value="musica">Música</option>
-        </select>
-      </label>
-      <label style="display:block; font-size:0.8rem; margin-bottom:0.35rem;">
-        Categoría<br>
-        <input id="addCategory" style="width:100%; margin-top:0.2rem; font-size:0.8rem; padding:0.35rem 0.6rem; border-radius:0.4rem; border:1px solid #374151; background:#020617; color:#e5e7eb;" />
-      </label>
-      <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:0.8rem;">
-        <button class="btn" value="cancel">Cancelar</button>
-        <button class="btn primary" value="confirm" onclick="saveNewItem(event)">Guardar</button>
-      </div>
-    </form>
-  </dialog>
+<!-- App entrypoint (ES Module) -->
+<script type="module">
+  import { init } from './app.js';
+  init();
+</script>
 
-  <input id="importFile" type="file" accept="application/json" style="display:none" />
-
-  <script>
-    const STORAGE_KEY = "libreaudio_pwa_v1";
-    const defaultData = [
-      {id: "demo-1", name: "Demo Radio", type: "radio", category: "Pop", url: "https://example.com", createdAt: Date.now()}
-    ];
-
-    function loadData() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : defaultData;
-      } catch { return defaultData; }
-    }
-
-    function saveData(items) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    }
-
-    let items = loadData();
-    let filtered = [...items];
-
-    function renderList() {
-      const container = document.getElementById("contentList");
-      container.innerHTML = "";
-      if (!filtered.length) {
-        container.innerHTML = '<p style="font-size:0.8rem;color:#9ca3af;">Sin resultados</p>';
-        return;
-      }
-      filtered.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).forEach(item => {
-        const el = document.createElement("article");
-        el.className = "item";
-        const pillClass = item.type === 'radio' ? 'live' : item.type === 'podcast' ? 'podcast' : 'music';
-        el.innerHTML = `
-          <div class="item-header">
-            <div>
-              <div class="item-title">${item.name}</div>
-              <div class="item-meta">${item.category || "Sin categoría"}</div>
-            </div>
-            <span class="pill ${pillClass}">${item.type.toUpperCase()}</span>
-          </div>
-          <div class="actions">
-            <button class="btn primary" onclick="window.open('${item.url}', '_blank')">Abrir</button>
-            <button class="btn" onclick="deleteItem('${item.id}')">Eliminar</button>
-          </div>
-        `;
-        container.appendChild(el);
-      });
-    }
-
-    function openAddDialog() {
-      document.getElementById("addDialog").showModal();
-    }
-
-    function saveNewItem(e) {
-      e.preventDefault();
-      const name = document.getElementById("addName").value.trim();
-      const url = document.getElementById("addUrl").value.trim();
-      if (!name || !url) return;
-      items.push({
-        id: "item-" + Date.now(),
-        name,
-        url,
-        type: document.getElementById("addType").value,
-        category: document.getElementById("addCategory").value.trim(),
-        createdAt: Date.now()
-      });
-      saveData(items);
-      applyCurrentFilter();
-      document.getElementById("addDialog").close();
-    }
-
-    function deleteItem(id) {
-      if (!confirm("¿Eliminar?")) return;
-      items = items.filter(x => x.id !== id);
-      saveData(items);
-      applyCurrentFilter();
-    }
-
-    function applyCurrentFilter() {
-      const term = document.getElementById("searchInput").value.toLowerCase().trim();
-      filtered = term ? items.filter(i => 
-        (i.name || "").toLowerCase().includes(term) ||
-        (i.category || "").toLowerCase().includes(term)
-      ) : [...items];
-      renderList();
-    }
-
-    function resetFilter() {
-      document.getElementById("searchInput").value = "";
-      applyCurrentFilter();
-    }
-
-    function exportData() {
-      const blob = new Blob([JSON.stringify(items, null, 2)], {type: "application/json"});
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "libreaudio-export.json";
-      a.click();
-    }
-
-    function importData() {
-      const input = document.getElementById("importFile");
-      input.onchange = () => {
-        const file = input.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = e => {
-          try {
-            items = JSON.parse(e.target.result);
-            saveData(items);
-            applyCurrentFilter();
-          } catch { alert("Error al importar"); }
-        };
-        reader.readAsText(file);
-      };
-      input.click();
-    }
-
-    document.getElementById("searchInput").addEventListener("input", applyCurrentFilter);
-
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js").catch(() => {});
-    }
-
-    renderList();
-  </script>
 </body>
 </html>

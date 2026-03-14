@@ -1,341 +1,153 @@
-# LibreAudio PRO
+# LibreAudio PRO 🎵
 
-LibreAudio PRO is an open-source directory platform for publishing, moderating, and discovering radios, podcasts, and free audio content using PHP 8, MySQL, and Docker. Content is shared through external links (Google Drive, Dropbox, etc.).
+> Directorio open source para publicar, moderar y descubrir radios, podcasts y audio libre.  
+> Stack: **Supabase** (PostgreSQL + Auth) + **Vanilla JS** + **GitHub Pages**. Sin servidor. Sin costos.
 
-## Features
-
-- 🎵 **Public Content Directory**: Browse approved radios and podcasts
-- 🔐 **User Authentication**: Register and login system with role-based access
-- 👥 **User Roles**: Admin and regular user roles with different permissions
-- ✅ **Content Moderation**: Admin panel for reviewing and approving submissions
-- 📝 **Content Submission**: Users can submit content with external URLs
-- 🔗 **External Links Only**: No file uploads - content is hosted externally
-- 🐳 **Docker-Ready**: Complete Docker setup for easy deployment
-- 🛡️ **Security**: CSRF protection, password hashing, input validation
-
-## Technology Stack
-
-- **Framework**: CakePHP 4.5
-- **PHP**: 8.1
-- **Database**: MySQL 8.0
-- **Web Server**: Nginx (Alpine)
-- **Container**: Docker & Docker Compose
-
-## Prerequisites
-
-- Docker
-- Docker Compose
-- Git
-
-## Quick Start
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/luisitoys12/LibreAudio-PRO.git
-cd LibreAudio-PRO
-```
-
-### 2. Run the Bootstrap Script
-
-```bash
-chmod +x bootstrap.sh
-./bootstrap.sh
-```
-
-This script will:
-- Create necessary directories
-- Start Docker containers
-- Install Composer dependencies
-- Run database migrations
-- Seed initial admin user
-
-### 3. Access the Application
-
-- **Application**: http://localhost:8080
-- **Default Admin**: admin@libreaudiopro.com / admin123
-- **Default User**: user@libreaudiopro.com / user123
-
-## Deploy on Railway (Cloud)
-
-Railway is the easiest way to deploy LibreAudio PRO publicly. Get $5 USD free credits monthly.
-
-### 1. Prepare Repository
-
-Make sure everything is committed to GitHub:
-
-```bash
-git add .
-git commit -m "Prepare for Railway deployment"
-git push
-```
-
-### 2. Create Railway Account
-
-1. Visit https://railway.app
-2. Sign up with GitHub
-3. Authorize Railway access to your repositories
-
-### 3. Create New Project
-
-1. Click **"New Project"**
-2. Select **"Deploy from GitHub repo"**
-3. Select your **LibreAudio-PRO** repository
-
-### 4. Add MySQL Database
-
-1. In your Railway project, click **"+ New"**
-2. Select **"Database"** → **"MySQL"**
-3. Railway configures it automatically
-
-### 5. Set Environment Variables
-
-Go to your PHP service in Railway and set these variables in the **Variables** tab:
-
-```
-APP_NAME=LibreAudio
-DEBUG=false
-APP_DEFAULT_LOCALE=es_ES
-SECURITY_SALT=your_random_salt_here_12345_abcde
-DB_ENGINE=Mysql
-DB_HOST=${{ DATABASE_URL_REPLICA.HOSTNAME }}
-DB_PORT=${{ DATABASE_URL_REPLICA.PORT }}
-DB_NAME=${{ DATABASE_URL_REPLICA.PATH }}
-DB_USERNAME=${{ DATABASE_URL_REPLICA.USERNAME }}
-DB_PASSWORD=${{ DATABASE_URL_REPLICA.PASSWORD }}
-```
-
-### 6. Access Your Application
-
-Railway generates a public URL automatically. Visit it and login with:
-- **Admin**: admin@libreaudiopro.com / admin123
-- **User**: user@libreaudiopro.com / user123
-
-⚠️ **Change default credentials immediately in production!**
-
-## Manual Setup (Local)
-
-If you prefer manual setup locally:
-
-### 1. Start Docker Containers
-
-```bash
-docker compose up -d
-```
-
-### 2. Install Dependencies
-
-```bash
-docker compose exec php composer install
-```
-
-### 3. Run Migrations
-
-```bash
-docker compose exec php bin/cake migrations migrate
-```
-
-### 4. Seed Database
-
-```bash
-docker compose exec php bin/cake migrations seed
-```
-
-## Project Structure
-
-```
-LibreAudio-PRO/
-├── config/                 # Configuration files
-│   ├── Migrations/        # Database migrations
-│   ├── Seeds/             # Database seed files
-│   ├── app_local.php      # Application configuration
-│   ├── bootstrap.php      # Bootstrap logic
-│   └── routes.php         # Route definitions
-├── docker/                # Docker configuration
-│   ├── nginx/            # Nginx configuration
-│   └── php/              # PHP Dockerfile
-├── src/                  # Application source code
-│   ├── Controller/       # Controllers
-│   │   ├── Admin/       # Admin controllers
-│   │   ├── AppController.php
-│   │   ├── ContentController.php
-│   │   └── UsersController.php
-│   ├── Model/           # Models
-│   │   ├── Entity/      # Entity classes
-│   │   └── Table/       # Table classes
-│   └── Application.php  # Application class
-├── templates/           # View templates
-│   ├── Admin/          # Admin templates
-│   ├── Content/        # Content templates
-│   ├── Users/          # User templates
-│   └── layout/         # Layout files
-├── webroot/            # Public web files
-│   ├── css/           # Stylesheets
-│   ├── js/            # JavaScript
-│   └── index.php      # Entry point
-├── docker compose.yml  # Docker Compose configuration
-├── bootstrap.sh        # Setup script
-└── README.md          # This file
-```
-
-## User Roles
-
-### Admin
-- Access to admin panel
-- Review pending content submissions
-- Approve or reject content
-- Delete content
-- View all statistics
-
-### Regular User
-- Register and login
-- Submit content for review
-- View own submissions
-- Browse approved content
-
-## Content Workflow
-
-1. **Submission**: Users submit content with external URLs
-2. **Review**: Content appears in admin moderation panel with "pending" status
-3. **Moderation**: Admin reviews and approves or rejects
-4. **Publication**: Approved content appears in public listing
-
-## Docker Services
-
-### PHP (php:8.1-fpm)
-- PHP-FPM with required extensions
-- Composer pre-installed
-- Runs application code
-
-### Nginx (nginx:alpine)
-- Serves application
-- Proxies requests to PHP-FPM
-- Port: 8080
-
-### MySQL (mysql:8.0)
-- Database server
-- Port: 3306 (exposed)
-- Database: libreaudiopro
-
-## Development
-
-### Run CakePHP Commands
-
-```bash
-# Access PHP container
-docker compose exec php bash
-
-# Run migrations
-bin/cake migrations migrate
-
-# Create a new migration
-bin/cake bake migration CreateTableName
-
-# Clear cache
-bin/cake cache clear_all
-```
-
-### View Logs
-
-```bash
-# All services
-docker compose logs -f
-
-# Specific service
-docker compose logs -f php
-docker compose logs -f nginx
-docker compose logs -f mysql
-```
-
-### Database Access
-
-```bash
-# MySQL CLI
-docker compose exec mysql mysql -u libreaudiopro -plibreaudiopro_pass libreaudiopro
-```
-
-## Production Deployment
-
-### 1. Update Security Settings
-
-Edit `.env` and update:
-- `SECURITY_SALT` - Generate a new random salt
-- `DEBUG` - Set to `false`
-
-### 2. Update Database Credentials
-
-In `docker compose.yml`, change:
-- MySQL root password
-- Database password
-- Database name (optional)
-
-### 3. Update Admin Credentials
-
-After deployment, change the default admin password.
-
-### 4. Configure Domain
-
-Update `docker compose.yml` nginx port mapping or use a reverse proxy.
-
-### 5. Enable HTTPS
-
-Use a reverse proxy like Traefik or Nginx with Let's Encrypt certificates.
-
-## Security Considerations
-
-- ✅ Passwords are hashed using bcrypt
-- ✅ CSRF protection enabled
-- ✅ Input validation on all forms
-- ✅ SQL injection prevention (ORM)
-- ✅ XSS protection (auto-escaping in templates)
-- ✅ Role-based authorization
-- ⚠️ Change default credentials in production
-- ⚠️ Use HTTPS in production
-- ⚠️ Keep dependencies updated
-
-## Common Issues
-
-### Port Already in Use
-
-If port 8080 or 3306 is already in use, edit `docker compose.yml` to use different ports.
-
-### Permission Issues
-
-```bash
-chmod -R 777 tmp logs
-```
-
-### Database Connection Issues
-
-Check that MySQL container is running:
-```bash
-docker compose ps
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Support
-
-For issues and questions, please use the GitHub issue tracker.
-
-## Credits
-
-Built with:
-- [CakePHP](https://cakephp.org/)
-- [Docker](https://www.docker.com/)
-- [Nginx](https://nginx.org/)
-- [MySQL](https://www.mysql.com/)
+[![Deploy](https://img.shields.io/badge/demo-live-6C3EF7?style=flat-square)](https://luisitoys12.github.io/LibreAudio-PRO)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
 ---
 
-**LibreAudio PRO** - Democratizing access to free audio content 🎵
+## ✨ Características
+
+| Módulo | Descripción |
+|--------|-------------|
+| 🏠 **Directorio público** | Navega y busca contenido aprobado sin necesidad de cuenta |
+| 🔍 **Filtros avanzados** | Por tipo (radio, podcast, música, stream en vivo), género e idioma |
+| 🔐 **Auth con Supabase** | Email/contraseña + Google OAuth |
+| 📤 **Envíos de usuarios** | Formulario para enviar contenido con URL externa |
+| ✅ **Panel de moderación** | Admin puede aprobar, rechazar y eliminar contenido |
+| 👤 **Perfil de usuario** | Edita tu información y ve tus envíos |
+| 📱 **PWA instalable** | Funciona en móvil como app nativa |
+| 🌙 **Dark mode** | Diseño dark siempre activo |
+
+---
+
+## 🚀 Setup en 10 minutos
+
+### 1. Crear proyecto en Supabase
+
+1. Ve a [supabase.com](https://supabase.com) → **New project**
+2. Elige nombre, contraseña y región (ej. `us-east-1`)
+3. Espera ~2 min a que inicialice
+
+### 2. Ejecutar el schema SQL
+
+1. En Supabase: **SQL Editor** → **New query**
+2. Copia todo el contenido de [`sql/schema.sql`](sql/schema.sql)
+3. Haz clic en **Run** ✓
+
+### 3. Configurar credenciales en el frontend
+
+Edita `docs/index.html`, líneas 38-39:
+
+```html
+<script>
+  window.SUPABASE_URL  = 'https://TU_PROYECTO.supabase.co';  // Settings > API > URL
+  window.SUPABASE_ANON = 'TU_ANON_KEY_PUBLICA';              // Settings > API > anon key
+</script>
+```
+
+> ⚠️ La **anon key** es pública y segura de exponer en el frontend.  
+> **Nunca** uses la `service_role` key en el frontend.
+
+### 4. Activar Google OAuth (opcional)
+
+1. Supabase → **Authentication** → **Providers** → **Google**
+2. Sigue la guía para crear credenciales en Google Cloud Console
+3. Agrega `https://TU_USUARIO.github.io` en las **Authorized redirect URIs** de Supabase
+
+### 5. Hacer el primer admin
+
+Después de registrarte, ejecuta esto en Supabase SQL Editor:
+
+```sql
+UPDATE public.profiles SET role = 'admin' 
+WHERE id = (SELECT id FROM auth.users WHERE email = 'TU_EMAIL@ejemplo.com');
+```
+
+### 6. Deploy en GitHub Pages
+
+1. En tu repositorio: **Settings** → **Pages**
+2. Source: **GitHub Actions**
+3. Haz push a `main` → el workflow despliega automáticamente
+4. Tu app estará en: `https://TU_USUARIO.github.io/LibreAudio-PRO`
+
+---
+
+## 🗂️ Estructura del proyecto
+
+```
+LibreAudio-PRO/
+├── docs/                  ← Frontend (servido por GitHub Pages)
+│   ├── index.html         ← App shell + configuración Supabase
+│   ├── app.js             ← Lógica completa (Router + Supabase)
+│   ├── style.css          ← Design system dark
+│   └── manifest.json      ← PWA manifest
+├── sql/
+│   └── schema.sql         ← Schema completo para Supabase
+├── .github/
+│   └── workflows/
+│       └── deploy.yml     ← Auto-deploy a GitHub Pages
+└── README.md
+```
+
+---
+
+## 🔒 Seguridad (Row Level Security)
+
+Todas las tablas tienen RLS activado con estas políticas:
+
+| Tabla | Anon | Autenticado | Admin |
+|-------|------|-------------|-------|
+| `content` SELECT | Solo aprobados | Los suyos + aprobados | Todo |
+| `content` INSERT | ✗ | Solo propios (pending) | ✓ |
+| `content` UPDATE | ✗ | ✗ | ✓ |
+| `content` DELETE | ✗ | Solo los suyos | ✓ |
+| `profiles` SELECT | ✓ | ✓ | ✓ |
+| `profiles` UPDATE | ✗ | Solo el propio | ✓ |
+
+---
+
+## 🛠️ Desarrollo local
+
+No hay servidor que iniciar. Solo abre `docs/index.html` con Live Server (VS Code) o cualquier servidor HTTP estático:
+
+```bash
+# Con Python
+cd docs && python3 -m http.server 8080
+
+# Con Node.js
+npx serve docs
+```
+
+---
+
+## 📋 Variables de entorno
+
+No hay `.env`. La configuración de Supabase va directamente en `docs/index.html`:
+
+```html
+window.SUPABASE_URL  = 'https://xxxxxxxxxxxx.supabase.co';
+window.SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+```
+
+---
+
+## 🤝 Contribuir
+
+1. Fork el repositorio
+2. Crea una rama: `git checkout -b feat/mi-feature`
+3. Haz tus cambios y haz commit: `git commit -m "feat: descripción"`
+4. Push: `git push origin feat/mi-feature`
+5. Abre un Pull Request
+
+---
+
+## 📄 Licencia
+
+MIT — Libre para usar, modificar y distribuir.
+
+---
+
+**LibreAudio PRO** — Democratizando el acceso al audio independiente 🎵
