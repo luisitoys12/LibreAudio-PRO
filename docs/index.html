@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LibreAudio PRO — Directorio libre de radio, podcasts y audio</title>
-  <meta name="description" content="Descubre y comparte radios, podcasts y audio libre. Plataforma abierta y gratuita para la comunidad hispanohablante." />
+  <title>LibreAudio PRO — Radio · TV · Podcasts · Directorio libre</title>
+  <meta name="description" content="Descubre y comparte radios, TV en vivo, podcasts y audio. Compatible con AzuraCast, SonicPanel, ZenoFM, YouTube, Twitch, Dailymotion, iHeartRadio y TuneIn." />
   <meta name="theme-color" content="#6C3EF7" />
 
   <!-- Open Graph -->
   <meta property="og:title" content="LibreAudio PRO" />
-  <meta property="og:description" content="El directorio libre de radio, podcasts y audio independiente." />
+  <meta property="og:description" content="Directorio libre de radio, TV en vivo, podcasts y audio independiente." />
   <meta property="og:type" content="website" />
 
   <!-- Favicon SVG -->
@@ -26,6 +26,7 @@
   <!-- Styles -->
   <link rel="stylesheet" href="style.css" />
 
+  <!-- Supabase credentials -->
   <script>
     window.SUPABASE_URL  = 'https://woqkueabensezxjvlzjr.supabase.co';
     window.SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvcWt1ZWFiZW5zZXp4anZsempyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NTk2NDcsImV4cCI6MjA4OTAzNTY0N30.O_rPjlmRYTRTT54lEUvd6gluOYfmzRaUsabQ_hANGl4';
@@ -34,8 +35,10 @@
 <body>
 
 <div id="app">
+  <!-- NAV → renderNav() lo llena dinámicamente -->
   <header id="nav" role="banner"></header>
 
+  <!-- MAIN → el router inyecta cada página aquí -->
   <main id="main" role="main">
     <div class="loading-screen">
       <div class="spinner"></div>
@@ -43,6 +46,7 @@
     </div>
   </main>
 
+  <!-- FOOTER -->
   <footer>
     <p>
       LibreAudio PRO &copy; 2025 · Open Source ·
@@ -52,6 +56,12 @@
   </footer>
 </div>
 
+<!-- PLAYER BAR FIJO — siempre visible en la parte inferior -->
+<div id="playerBar">
+  <!-- initPlayer() lo rellena dinámicamente -->
+</div>
+
+<!-- App entrypoint (ES Module) -->
 <script type="module">
   import { init } from './app.js';
   init();

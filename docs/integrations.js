@@ -17,6 +17,7 @@ export const TuneIn = {
   BASE: 'https://opml.radiotime.com',
 
   async search(query, type = '') {
+    // type: 'station' | 'show' | 'program' | '' (all)
     const params = new URLSearchParams({
       query,
       render: 'json',
@@ -36,6 +37,7 @@ export const TuneIn = {
   },
 
   async browse(id = 'r0') {
+    // r0 = root, c57922 = music, etc.
     try {
       const url = `${this.BASE}/Browse.ashx?id=${id}&render=json&formats=mp3,aac`;
       const res = await fetch(CORS(url));
@@ -49,9 +51,11 @@ export const TuneIn = {
   },
 
   async getStreamUrl(tuneUrl) {
+    // tuneUrl es algo como http://opml.radiotime.com/Tune.ashx?id=s12345
     try {
       const res = await fetch(CORS(tuneUrl));
       const wrapper = await res.json();
+      // Puede devolver M3U con la URL directa del stream
       const content = wrapper.contents || '';
       const lines = content.split('\n').filter(l => l.startsWith('http'));
       return lines[0] || null;
@@ -72,8 +76,8 @@ export const TuneIn = {
         cover:     i.image || '',
         genre:     i.genre_id || '',
         nowPlaying: i.playing || i.current_track || '',
-        streamUrl: i.URL || '',
-        directUrl: '',
+        streamUrl: i.URL || '',    // Esta es la URL de Tune.ashx para resolver
+        directUrl: '',             // Se resuelve on-demand
         reliability: i.reliability || 0,
         bitrate:   i.bitrate || '',
         type:      i.item === 'station' ? 'radio' : (i.item === 'show' ? 'podcast' : 'radio'),
@@ -82,13 +86,15 @@ export const TuneIn = {
       }));
   },
 
+  // Construir URL del embed de TuneIn
   embedUrl(guideId) {
     return `https://tunein.com/embed/player/?stationId=${guideId}&partnerId=RadioTime`;
   },
 };
 
 // ─────────────────────────────────────────────────────────────
-// iHEARTRADIO API
+// iHEARTRADIO API (endpoints públicos no oficiales)
+// Documentados en https://api.iheart.com
 // ─────────────────────────────────────────────────────────────
 export const iHeart = {
   BASE: 'https://api.iheart.com/api/v3',
@@ -127,6 +133,7 @@ export const iHeart = {
   },
 
   async getStreamUrl(stationId) {
+    // Endpoint de streams de iHeart
     try {
       const url = `${this.BASE_V1}/live-meta/stream/${stationId}/currentTrackMeta`;
       const res = await fetch(CORS(url));
@@ -140,6 +147,8 @@ export const iHeart = {
 
   _parseResults(data) {
     const results = [];
+
+    // Stations
     const stations = data?.results?.stations?.results || data?.stations || [];
     stations.forEach(s => {
       results.push({
@@ -158,6 +167,8 @@ export const iHeart = {
         nowPlaying: '',
       });
     });
+
+    // Podcasts
     const podcasts = data?.results?.podcasts?.results || data?.podcasts || [];
     podcasts.forEach(p => {
       results.push({
@@ -176,12 +187,15 @@ export const iHeart = {
         nowPlaying: '',
       });
     });
+
     return results;
   },
 };
 
 // ─────────────────────────────────────────────────────────────
 // DAILYMOTION
+// Embed: https://www.dailymotion.com/embed/video/{id}
+// API pública: https://api.dailymotion.com/videos
 // ─────────────────────────────────────────────────────────────
 export const Dailymotion = {
   BASE: 'https://api.dailymotion.com',
@@ -204,6 +218,7 @@ export const Dailymotion = {
   },
 
   async getPopular(limit = 12) {
+    // Videos trending de Dailymotion — no requiere auth, siempre devuelve resultados
     try {
       const params = new URLSearchParams({
         fields: 'id,title,description,thumbnail_url,channel,duration,owner,language,country',
@@ -233,6 +248,7 @@ export const Dailymotion = {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const list = data?.list || [];
+      // Si no hay lives activos fallback a populares
       if (!list.length) return this.getPopular(limit);
       return this._parseVideos(list, true);
     } catch (e) {
@@ -270,10 +286,11 @@ export const Dailymotion = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// REPRODUCTOR UNIVERSAL
+// REPRODUCTOR UNIVERSAL — detecta automáticamente el tipo
 // ─────────────────────────────────────────────────────────────
 export const PlayerResolver = {
 
+  // Detecta el tipo de panel a partir de una URL
   detectType(url) {
     if (!url) return 'generic';
     if (url.includes('youtube.com') || url.includes('youtu.be'))  return 'youtube';
@@ -291,6 +308,7 @@ export const PlayerResolver = {
     return 'iframe';
   },
 
+  // Construye la URL de embed según tipo
   buildEmbed(url, type, autoplay = true) {
     const auto = autoplay ? 1 : 0;
     switch (type) {
@@ -313,10 +331,12 @@ export const PlayerResolver = {
         return `https://www.facebook.com/plugins/video.php?href=${encoded}&width=500&autoplay=${!!autoplay}&show_text=false`;
       }
       case 'iheart': {
+        // iHeart embed directo
         if (url.includes('embed=true')) return url;
         return url.includes('?') ? `${url}&embed=true` : `${url}?embed=true`;
       }
       case 'tunein': {
+        // TuneIn embed
         const stId = url.match(/s\d+/)?.[0] || '';
         if (stId) return `https://tunein.com/embed/player/?stationId=${stId}&partnerId=RadioTime`;
         return url;
@@ -332,6 +352,7 @@ export const PlayerResolver = {
     }
   },
 
+  // Genera el HTML del iframe para el player
   iframeHTML(embedUrl, title = '') {
     return `<iframe
       src="${embedUrl}"
@@ -354,7 +375,7 @@ export const PlayerResolver = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// HLS.js helper
+// HLS.js helper — carga la librería dinámicamente si hace falta
 // ─────────────────────────────────────────────────────────────
 export async function loadHlsJs() {
   if (window.Hls) return window.Hls;
@@ -368,10 +389,11 @@ export async function loadHlsJs() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// SOCIAL MEDIA
+// SOCIAL MEDIA — helpers de embed
 // ─────────────────────────────────────────────────────────────
 export const Social = {
 
+  // Detectar tipo de URL social
   detectNetwork(url) {
     if (!url) return null;
     if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube';
@@ -386,6 +408,7 @@ export const Social = {
     return null;
   },
 
+  // Badges bonitos para cada red
   badge(network) {
     const badges = {
       youtube:     { icon: '▶️', label: 'YouTube',    color: '#FF0000' },
@@ -406,12 +429,14 @@ export const Social = {
     return badges[network] || { icon: '🔗', label: network || 'Web', color: '#6B7280' };
   },
 
+  // Rumble embed
   rumbleEmbed(url) {
     const m = url?.match(/rumble\.com\/(?:embed\/)?([a-zA-Z0-9]+)/);
     if (m) return `https://rumble.com/embed/${m[1]}/?pub=4`;
     return url;
   },
 
+  // Kick embed
   kickEmbed(url) {
     const m = url?.match(/kick\.com\/([a-zA-Z0-9_]+)/);
     if (m) return `https://player.kick.com/${m[1]}`;
@@ -425,8 +450,10 @@ export const Social = {
 // ─────────────────────────────────────────────────────────────
 export const Metadata = {
 
+  // AzuraCast: GET /api/nowplaying/{station_id}
   async azuracast(baseUrl, stationSlug) {
     try {
+      // baseUrl ej: https://radio.dominio.com  stationSlug: turadio
       const apiUrl = `${baseUrl.replace(/\/$/, '')}/api/nowplaying/${stationSlug}`;
       const res = await fetch(apiUrl, { signal: AbortSignal.timeout(4000) });
       if (!res.ok) throw new Error('no ok');
@@ -445,14 +472,17 @@ export const Metadata = {
     }
   },
 
+  // Extrae base + slug de una URL de AzuraCast
   parseAzuraCastUrl(url) {
     if (!url) return null;
+    // Patrones: /public/SLUG, /public/SLUG/embed, /api/nowplaying/SLUG
     const m = url.match(/(?:\/public\/|\/api\/nowplaying\/)([^/?#]+)/);
     if (!m) return null;
     const base = url.split('/public/')[0] || url.split('/api/')[0];
     return { base, slug: m[1] };
   },
 
+  // SonicPanel: GET /stats?json=1
   async sonicpanel(statsUrl) {
     try {
       const res = await fetch(statsUrl, { signal: AbortSignal.timeout(4000) });
@@ -469,16 +499,19 @@ export const Metadata = {
     }
   },
 
+  // ZenoFM no expone API pública de nowplaying — placeholder
   async zenofm(streamUrl) {
     return null;
   },
 
+  // Obtener metadatos automáticamente según panel_type
   async fetch(panelType, streamUrl, embedUrl) {
     if (panelType === 'azuracast') {
       const parsed = this.parseAzuraCastUrl(embedUrl || streamUrl);
       if (parsed) return this.azuracast(parsed.base, parsed.slug);
     }
     if (panelType === 'sonicpanel') {
+      // Construir stats URL desde stream_url
       if (streamUrl) {
         const statsUrl = streamUrl.replace(/;.*$/, '').replace(/stream.*$/, 'stats?json=1');
         return this.sonicpanel(statsUrl);
