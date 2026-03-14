@@ -5,7 +5,7 @@
 // ============================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { TuneIn, iHeart, Dailymotion, PlayerResolver, Social, loadHlsJs } from './integrations.js';
+import { TuneIn, iHeart, Dailymotion, PlayerResolver, Social, loadHlsJs, Metadata } from './integrations.js';
 
 // ── CONFIG ──────────────────────────────────────────────────
 const SUPABASE_URL  = window.SUPABASE_URL  || 'https://TU_PROYECTO.supabase.co';
@@ -234,27 +234,44 @@ function contentCardHTML(item) {
 
 // ── EXTERNAL CARD (iHeart / TuneIn / Dailymotion) ───────────
 function externalCardHTML(item) {
-  const meta = TYPE_META[item.type] || TYPE_META.otro;
+  const meta  = TYPE_META[item.type] || TYPE_META.otro;
   const badge = Social.badge(item.panelType || item.source);
   const isLive = item.type === 'tv_en_vivo' || item.type === 'stream_en_vivo';
-  const encTitle = escapeHTML(item.title);
-  const encSub   = escapeHTML(item.subtitle||'');
-  const encCover = escapeHTML(item.cover||'');
-  const encStream = escapeHTML(item.streamUrl||item.embedUrl||item.externalUrl||'');
-  const encEmbed  = escapeHTML(item.embedUrl||item.streamUrl||item.externalUrl||'');
-  const pt = item.panelType || 'generic';
+  const pt = item.panelType || PlayerResolver.detectType(item.embedUrl || item.streamUrl || '') || 'generic';
+
+  // Determinar la URL real de reproducción
+  let playStream = item.streamUrl || '';
+  let playEmbed  = item.embedUrl  || item.externalUrl || '';
+  // Para Dailymotion: construir embed si no existe
+  if (pt === 'dailymotion' && !playEmbed && item.id) {
+    playEmbed = `https://www.dailymotion.com/embed/video/${item.id}?autoplay=1`;
+  }
+  if (!playEmbed && playStream) {
+    playEmbed = PlayerResolver.buildEmbed(playStream, pt, true) || playStream;
+  }
+
+  const openUrl = item.externalUrl || item.embedUrl || '';
+
+  // Encode for data-attributes (JSON safe)
+  const dataObj = JSON.stringify({
+    id: `ext-${item.id}`,
+    title: item.title || '',
+    subtitle: item.subtitle || '',
+    cover: item.cover || '',
+    streamUrl: playStream,
+    panelType: pt,
+    embedUrl: playEmbed,
+  });
 
   return `
-    <article class="card card-external ${isLive?'card-live':''}">
-      <div class="card-cover" style="${item.cover?`background-image:url('${item.cover}')`:`background:linear-gradient(135deg,${meta.color}22,${meta.color}44)`}">
+    <article class="card card-external ${isLive?'card-live':''}" data-play='${dataObj.replace(/'/g,"&apos;")}'>
+      <div class="card-cover" style="${item.cover?`background-image:url('${encodeURI(item.cover)}')`:`background:linear-gradient(135deg,${meta.color}22,${meta.color}44)`}">
         ${!item.cover?`<span class="card-icon">${badge.icon}</span>`:''}
         <div class="card-cover-badges">
           <span class="card-type-badge" style="background:${badge.color}22;border-color:${badge.color}44">${badge.label}</span>
           ${isLive?'<span class="live-pill">● EN VIVO</span>':''}
         </div>
-        <button class="play-btn"
-          onclick="playItem(event,'ext-${escapeHTML(item.id)}','${encTitle}','${encSub}','${encCover}','${encStream}','${pt}','${encEmbed}')"
-          aria-label="Reproducir">
+        <button class="play-btn" onclick="playExternal(event,this)" aria-label="Reproducir">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         </button>
       </div>
@@ -264,16 +281,27 @@ function externalCardHTML(item) {
           <span class="panel-badge" style="border-color:${badge.color}44;color:${badge.color}">${badge.label}</span>
         </div>
         <h3 class="card-title">${escapeHTML(item.title)}</h3>
-        ${item.subtitle?`<p class="card-subtitle">${escapeHTML(item.subtitle.substring(0,70))}</p>`:''}
+        ${item.subtitle?`<p class="card-subtitle">${escapeHTML(item.subtitle.substring(0,80))}</p>`:''}
         ${item.genre?`<span class="card-genre">${escapeHTML(item.genre)}</span>`:''}
         ${item.nowPlaying?`<div class="now-playing"><span class="np-dot"></span><span class="np-text">${escapeHTML(item.nowPlaying)}</span></div>`:''}
         <div class="card-footer">
           <span class="ext-source-tag">${badge.icon} ${badge.label}</span>
-          ${item.externalUrl||item.embedUrl?`<a href="${item.externalUrl||item.embedUrl}" target="_blank" class="btn btn-sm btn-ghost">Abrir</a>`:''}
+          ${openUrl?`<a href="${openUrl}" target="_blank" rel="noopener" class="btn btn-sm btn-ghost">Abrir</a>`:''}
         </div>
       </div>
     </article>`;
 }
+
+// Helper para reproducir tarjetas externas (lee data-play del article padre)
+window.playExternal = function(e, btn) {
+  e?.stopPropagation();
+  const article = btn.closest('[data-play]');
+  if (!article) return;
+  try {
+    const d = JSON.parse(article.dataset.play.replace(/&apos;/g,"'"));
+    window.playItem(e, d.id, d.title, d.subtitle, d.cover, d.streamUrl, d.panelType, d.embedUrl);
+  } catch(err) { console.warn('playExternal parse error', err); }
+};
 
 // ── GLOBAL PLAYER ───────────────────────────────────────────
 function initPlayer() {
@@ -499,7 +527,7 @@ async function renderDiscover() {
   setMain(`
     <div class="page-header">
       <h1>🔍 Descubrir</h1>
-      <p>Busca en millones de estaciones vía iHeartRadio, TuneIn y Dailymotion</p>
+      <p>Busca en millones de estaciones y canales vía iHeartRadio, TuneIn y Dailymotion</p>
     </div>
 
     <div class="discover-tabs" id="discoverTabs">
@@ -518,7 +546,7 @@ async function renderDiscover() {
       <button id="discoverBtn" class="btn btn-primary">Buscar</button>
     </div>
 
-    <div id="discoverResults"></div>
+    <div id="discoverResults">${loadingHTML('Cargando contenido popular…')}</div>
   `);
 
   let activeTab = 'tunein';
@@ -530,71 +558,79 @@ async function renderDiscover() {
       document.querySelectorAll('.dtab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       activeTab = btn.dataset.tab;
-      const q = document.getElementById('discoverSearch').value.trim();
+      const q = document.getElementById('discoverSearch')?.value.trim();
       if (q) doSearch(q, activeTab);
       else loadDefault(activeTab);
     });
   });
 
-  // Search
   document.getElementById('discoverSearch').addEventListener('input', e => {
     clearTimeout(debounce);
     debounce = setTimeout(() => {
       const q = e.target.value.trim();
       if (q.length >= 2) doSearch(q, activeTab);
+      else if (q === '') loadDefault(activeTab);
     }, 500);
   });
 
   document.getElementById('discoverBtn').addEventListener('click', () => {
     const q = document.getElementById('discoverSearch').value.trim();
     if (q) doSearch(q, activeTab);
+    else loadDefault(activeTab);
   });
 
-  // Enter key
   document.getElementById('discoverSearch').addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       const q = e.target.value.trim();
-      if (q) doSearch(q, activeTab);
+      if (q) doSearch(q, activeTab); else loadDefault(activeTab);
     }
   });
 
-  // Default content
+  // Iniciar con TuneIn
   loadDefault('tunein');
 
   async function loadDefault(tab) {
     const res = document.getElementById('discoverResults');
-    res.innerHTML = loadingHTML('Cargando estaciones populares…');
+    if (!res) return;
+    res.innerHTML = loadingHTML(tab === 'dailymotion' ? 'Cargando videos populares…' : 'Cargando estaciones populares…');
     try {
       let items = [];
       if (tab === 'tunein') {
-        items = await TuneIn.browse('r0'); // root browse
+        items = await TuneIn.browse('r0');
+        // fallback si el proxy falla
+        if (!items.length) items = await TuneIn.search('radio');
       } else if (tab === 'iheart') {
-        items = await iHeart.search('pop radio'); // popular
+        items = await iHeart.search('pop');
+        if (!items.length) items = await iHeart.getFeatured('MX');
       } else if (tab === 'dailymotion') {
-        items = await Dailymotion.getLive();
+        // Videos populares (no solo live — hay pocos live en DM)
+        items = await Dailymotion.getPopular(12);
+        if (!items.length) items = await Dailymotion.search('noticias', 12);
       }
-      renderResults(items, res, tab);
+      renderDiscoverResults(items, res);
     } catch (e) {
-      res.innerHTML = `<div class="empty-state"><span class="empty-icon">❌</span><h3>Error al cargar</h3><p>${e.message}</p></div>`;
+      res.innerHTML = `<div class="empty-state"><span class="empty-icon">❌</span><h3>Error al cargar</h3><p>${e.message||'Intenta de nuevo'}</p><button class="btn btn-primary" onclick="document.getElementById('discoverBtn').click()">Reintentar</button></div>`;
     }
   }
 
   async function doSearch(query, tab) {
     const res = document.getElementById('discoverResults');
-    res.innerHTML = loadingHTML(`Buscando en ${tab === 'tunein' ? 'TuneIn' : tab === 'iheart' ? 'iHeartRadio' : 'Dailymotion'}…`);
+    if (!res) return;
+    const names = { tunein:'TuneIn', iheart:'iHeartRadio', dailymotion:'Dailymotion' };
+    res.innerHTML = loadingHTML(`Buscando en ${names[tab]}…`);
     try {
       let items = [];
-      if (tab === 'tunein')       items = await TuneIn.search(query);
-      else if (tab === 'iheart')  items = await iHeart.search(query);
-      else if (tab === 'dailymotion') items = await Dailymotion.search(query);
-      renderResults(items, res, tab);
+      if (tab === 'tunein')           items = await TuneIn.search(query);
+      else if (tab === 'iheart')      items = await iHeart.search(query);
+      else if (tab === 'dailymotion') items = await Dailymotion.search(query, 12);
+      renderDiscoverResults(items, res);
     } catch(e) {
-      res.innerHTML = `<div class="empty-state"><span class="empty-icon">🔍</span><h3>Sin resultados</h3><p>${e.message}</p></div>`;
+      res.innerHTML = `<div class="empty-state"><span class="empty-icon">🔍</span><h3>Sin resultados</h3><p>${e.message||'Intenta con otra búsqueda.'}</p></div>`;
     }
   }
 
-  function renderResults(items, container, tab) {
-    if (!items.length) {
+  function renderDiscoverResults(items, container) {
+    if (!items || !items.length) {
       container.innerHTML = `<div class="empty-state"><span class="empty-icon">🔍</span><h3>Sin resultados</h3><p>Intenta con otra búsqueda.</p></div>`;
       return;
     }
@@ -640,215 +676,223 @@ async function renderRadio() {
   `);
 }
 
-// ── EXPLORAR ────────────────────────────────────────────────
-let explorerPage = 0;
-const PAGE_SIZE  = 12;
-
+// ── EXPLORAR ─────────────────────────────────────────────────
 async function renderExplorer() {
-  explorerPage = 0;
+  setMain(loadingHTML());
+  const { data, error } = await supabase.from('content').select('*')
+    .eq('status','approved').order('plays',{ascending:false});
+  if (error) { showToast('Error al cargar','error'); return; }
+
+  const types   = [...new Set(data.map(d=>d.type).filter(Boolean))];
+  const genres  = [...new Set(data.map(d=>d.genre).filter(Boolean))].sort();
+  const countries = [...new Set(data.map(d=>d.country).filter(Boolean))].sort();
+
+  const f = state.filters;
+
+  const filtered = data.filter(item =>
+    (!f.type    || item.type    === f.type) &&
+    (!f.genre   || item.genre   === f.genre) &&
+    (!f.country || item.country === f.country) &&
+    (!f.query   || item.title.toLowerCase().includes(f.query.toLowerCase()) ||
+                   item.subtitle?.toLowerCase().includes(f.query.toLowerCase()))
+  );
+
   setMain(`
-    <div class="page-header"><h1>Explorar todo</h1><p>Radio, TV, Podcasts, Música y más</p></div>
+    <div class="page-header">
+      <h1>Explorar directorio</h1>
+      <p>${data.length} contenidos aprobados</p>
+    </div>
+
     <div class="filters-bar">
       <div class="search-wrap">
         <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor">
           <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"/>
         </svg>
-        <input type="text" id="searchInput" placeholder="Buscar estaciones, canales…" class="search-input"/>
+        <input type="text" id="searchInput" placeholder="Buscar…" class="search-input" value="${escapeHTML(f.query)}"/>
       </div>
       <select id="typeFilter" class="filter-select">
         <option value="">Todos los tipos</option>
-        <option value="radio">📻 Radio</option>
-        <option value="tv_en_vivo">📺 TV en vivo</option>
-        <option value="tv_grabado">🎬 TV/Video</option>
-        <option value="podcast">🎙️ Podcast</option>
-        <option value="musica">🎵 Música</option>
-        <option value="stream_en_vivo">🔴 Stream</option>
-        <option value="otro">🎧 Otro</option>
+        ${types.map(t=>`<option value="${t}" ${f.type===t?'selected':''}>${TYPE_META[t]?.label||t}</option>`).join('')}
       </select>
-      <select id="panelFilter" class="filter-select">
-        <option value="">Todas las plataformas</option>
-        <option value="azuracast">AzuraCast</option>
-        <option value="sonicpanel">SonicPanel</option>
-        <option value="zenofm">ZenoFM</option>
-        <option value="youtube">YouTube</option>
-        <option value="twitch">Twitch</option>
-        <option value="dailymotion">Dailymotion</option>
-        <option value="facebook">Facebook</option>
-        <option value="kick">Kick</option>
-        <option value="rumble">Rumble</option>
-        <option value="iheart">iHeartRadio</option>
-        <option value="tunein">TuneIn</option>
-        <option value="hls">HLS Stream</option>
+      <select id="genreFilter" class="filter-select">
+        <option value="">Todos los géneros</option>
+        ${genres.map(g=>`<option value="${g}" ${f.genre===g?'selected':''}>${g}</option>`).join('')}
       </select>
       <select id="countryFilter" class="filter-select">
         <option value="">Todos los países</option>
-        <option value="MX">🇲🇽 México</option>
-        <option value="US">🇺🇸 Estados Unidos</option>
-        <option value="ES">🇪🇸 España</option>
-        <option value="AR">🇦🇷 Argentina</option>
-        <option value="CO">🇨🇴 Colombia</option>
-        <option value="CL">🇨🇱 Chile</option>
-        <option value="VE">🇻🇪 Venezuela</option>
-        <option value="PE">🇵🇪 Perú</option>
-        <option value="BR">🇧🇷 Brasil</option>
+        ${countries.map(c=>`<option value="${c}" ${f.country===c?'selected':''}>${getFlagEmoji(c)} ${c}</option>`).join('')}
       </select>
-      <button id="applyFilters" class="btn btn-primary">Filtrar</button>
     </div>
-    <div id="contentGrid" class="grid-cards"></div>
-    <div id="loadMoreWrap" style="text-align:center;margin:2rem 0;display:none">
-      <button id="loadMoreBtn" class="btn btn-ghost">Cargar más</button>
+
+    <div class="grid-cards" id="cardsGrid">
+      ${filtered.length
+        ? filtered.map(contentCardHTML).join('')
+        : `<div class="empty-state"><span class="empty-icon">🔍</span><h3>Sin resultados</h3><p>Intenta con otros filtros.</p></div>`}
     </div>
   `);
 
-  async function load(reset=false) {
-    if (reset) explorerPage = 0;
-    const grid = document.getElementById('contentGrid');
-    if (explorerPage === 0) grid.innerHTML = loadingHTML();
+  const applyFilters = () => {
+    f.query   = document.getElementById('searchInput').value.trim();
+    f.type    = document.getElementById('typeFilter').value;
+    f.genre   = document.getElementById('genreFilter').value;
+    f.country = document.getElementById('countryFilter').value;
+    renderExplorer();
+  };
 
-    const q     = document.getElementById('searchInput')?.value.trim() || '';
-    const type  = document.getElementById('typeFilter')?.value || '';
-    const panel = document.getElementById('panelFilter')?.value || '';
-    const cntry = document.getElementById('countryFilter')?.value || '';
-
-    let query = supabase.from('content').select('*').eq('status','approved')
-      .order('plays',{ascending:false}).range(explorerPage*PAGE_SIZE,(explorerPage+1)*PAGE_SIZE-1);
-
-    if (type)  query = query.eq('type', type);
-    if (panel) query = query.eq('panel_type', panel);
-    if (cntry) query = query.eq('country', cntry);
-    if (q)     query = query.ilike('title', `%${q}%`);
-
-    const { data, error } = await query;
-    if (error) { showToast('Error al cargar','error'); return; }
-
-    if (explorerPage === 0) {
-      grid.innerHTML = data?.length
-        ? data.map(contentCardHTML).join('')
-        : `<div class="empty-state"><span class="empty-icon">🔍</span><h3>Sin resultados</h3><p>Intenta con otros filtros.</p></div>`;
-    } else {
-      grid.insertAdjacentHTML('beforeend', data.map(contentCardHTML).join(''));
-    }
-
-    const lmw = document.getElementById('loadMoreWrap');
-    lmw.style.display = data?.length === PAGE_SIZE ? 'block' : 'none';
-  }
-
-  document.getElementById('applyFilters').addEventListener('click', () => load(true));
-  document.getElementById('searchInput').addEventListener('keydown', e => { if(e.key==='Enter') load(true); });
-  document.getElementById('loadMoreBtn')?.addEventListener('click', () => { explorerPage++; load(); });
-  load();
+  document.getElementById('searchInput').addEventListener('input',  applyFilters);
+  document.getElementById('typeFilter').addEventListener('change',  applyFilters);
+  document.getElementById('genreFilter').addEventListener('change', applyFilters);
+  document.getElementById('countryFilter').addEventListener('change', applyFilters);
 }
 
-// ── ENVIAR ───────────────────────────────────────────────────
+// ── SUBMIT ───────────────────────────────────────────────────
 async function renderSubmit() {
   if (!state.session) { navigate('#/login'); return; }
+
+  // Providers list for panel_type selector
+  const PROVIDERS = [
+    { id: 'audio',       icon: '🔊', label: 'Audio directo' },
+    { id: 'hls',         icon: '📡', label: 'HLS / M3U8' },
+    { id: 'youtube',     icon: '▶️',  label: 'YouTube' },
+    { id: 'twitch',      icon: '🟣', label: 'Twitch' },
+    { id: 'facebook',    icon: '🔵', label: 'Facebook Live' },
+    { id: 'instagram',   icon: '📸', label: 'Instagram Live' },
+    { id: 'tiktok',      icon: '🎵', label: 'TikTok Live' },
+    { id: 'kick',        icon: '🟢', label: 'Kick' },
+    { id: 'rumble',      icon: '🔴', label: 'Rumble' },
+    { id: 'dailymotion', icon: '🔵', label: 'Dailymotion' },
+    { id: 'iheart',      icon: '❤️', label: 'iHeartRadio' },
+    { id: 'tunein',      icon: '📻', label: 'TuneIn' },
+    { id: 'azuracast',   icon: '⚡', label: 'AzuraCast' },
+    { id: 'sonicpanel',  icon: '🎚️', label: 'SonicPanel' },
+    { id: 'zenofm',      icon: '🎶', label: 'ZenoFM' },
+    { id: 'iframe',      icon: '🖼️', label: 'iFrame embed' },
+    { id: 'generic',     icon: '🌐', label: 'Otro / genérico' },
+  ];
+
   setMain(`
-    <div class="page-header"><h1>+ Agregar contenido</h1><p>Comparte tu radio, TV, podcast o stream con la comunidad.</p></div>
-    <form id="submitForm" class="form-card" autocomplete="off">
-      <div class="form-group">
-        <label>Tipo de contenido *</label>
-        <select name="type" required class="form-select">
-          <option value="">Selecciona un tipo…</option>
-          <option value="radio">📻 Radio en vivo</option>
-          <option value="tv_en_vivo">📺 TV en vivo</option>
-          <option value="tv_grabado">🎬 TV/Video grabado</option>
-          <option value="podcast">🎙️ Podcast</option>
-          <option value="musica">🎵 Música</option>
-          <option value="stream_en_vivo">🔴 Stream en vivo</option>
-          <option value="otro">🎧 Otro</option>
-        </select>
+    <div class="form-page">
+      <div class="form-card form-card-wide">
+        <h1>Enviar contenido</h1>
+        <p class="form-subtitle">Agrega tu radio, TV, podcast o stream al directorio</p>
+        <form id="submitForm" class="form">
+
+          <div class="form-group">
+            <label>Tipo de contenido <span class="req">*</span></label>
+            <div class="type-grid">
+              ${Object.entries(TYPE_META).map(([k,v])=>`
+                <label class="type-option">
+                  <input type="radio" name="type" value="${k}" ${k==='radio'?'checked':''}>
+                  <div class="type-option-inner">
+                    <span class="type-opt-icon">${v.icon}</span>
+                    <span>${v.label}</span>
+                  </div>
+                </label>`).join('')}
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Título <span class="req">*</span></label>
+              <input type="text" name="title" placeholder="Nombre de la estación…" required maxlength="120">
+            </div>
+            <div class="form-group">
+              <label>Subtítulo / Descripción</label>
+              <input type="text" name="subtitle" placeholder="Slogan, descripción breve…" maxlength="200">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Proveedor / Panel <span class="req">*</span></label>
+            <div class="provider-grid">
+              ${PROVIDERS.map(p=>`
+                <label class="provider-option">
+                  <input type="radio" name="panel_type" value="${p.id}" ${p.id==='audio'?'checked':''}>
+                  <div class="provider-option-inner">
+                    <span class="provider-icon">${p.icon}</span>
+                    <span class="provider-label">${p.label}</span>
+                  </div>
+                </label>`).join('')}
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>URL de stream / embed <span class="req">*</span></label>
+              <input type="url" name="stream_url" placeholder="https://…" required>
+              <span class="field-hint">URL de audio directo, iframe, playlist HLS…</span>
+            </div>
+            <div class="form-group">
+              <label>URL externa (web pública)</label>
+              <input type="url" name="external_url" placeholder="https://…">
+              <span class="field-hint">Sitio web o perfil de la emisora</span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Portada (URL de imagen)</label>
+              <input type="url" name="cover_url" placeholder="https://…/imagen.jpg">
+            </div>
+            <div class="form-group">
+              <label>Embed URL (opcional)</label>
+              <input type="url" name="embed_url" placeholder="https://…">
+              <span class="field-hint">Si el proveedor usa URL de embed diferente</span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>País</label>
+              <select name="country">
+                <option value="">-- Seleccionar --</option>
+                ${['MX','US','ES','AR','CO','CL','PE','VE','EC','GT','HN','SV','CR','DO','CU','BO','PY','UY','PA','NI','PR','BR','PT','FR','DE','IT','GB','CA','JP','KR','AU'].map(c=>`<option value="${c}">${getFlagEmoji(c)} ${c}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Género / Categoría</label>
+              <input type="text" name="genre" placeholder="Noticias, Música, Deportes…" maxlength="60">
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" style="width:100%">Enviar para revisión</button>
+          </div>
+
+        </form>
       </div>
-      <div class="form-group">
-        <label>Nombre / Título *</label>
-        <input type="text" name="title" required maxlength="120" placeholder="Ej: Radio México 105.3" class="form-input"/>
-      </div>
-      <div class="form-group">
-        <label>Subtítulo / Descripción</label>
-        <input type="text" name="subtitle" maxlength="200" placeholder="Descripción breve" class="form-input"/>
-      </div>
-      <div class="form-group">
-        <label>URL de stream (MP3/AAC/HLS) o URL del servicio</label>
-        <input type="url" name="stream_url" placeholder="https://…" class="form-input"/>
-      </div>
-      <div class="form-group">
-        <label>URL de embed (YouTube, Twitch, iframe, etc.)</label>
-        <input type="url" name="embed_url" placeholder="https://…" class="form-input"/>
-      </div>
-      <div class="form-group">
-        <label>URL externa (web de la estación)</label>
-        <input type="url" name="external_url" placeholder="https://…" class="form-input"/>
-      </div>
-      <div class="form-group">
-        <label>Tipo de plataforma</label>
-        <select name="panel_type" class="form-select">
-          <option value="">Auto-detectar</option>
-          <option value="audio">Audio directo (MP3/AAC)</option>
-          <option value="hls">HLS (.m3u8)</option>
-          <option value="azuracast">AzuraCast</option>
-          <option value="sonicpanel">SonicPanel</option>
-          <option value="zenofm">ZenoFM</option>
-          <option value="youtube">YouTube</option>
-          <option value="twitch">Twitch</option>
-          <option value="dailymotion">Dailymotion</option>
-          <option value="iheart">iHeartRadio</option>
-          <option value="tunein">TuneIn</option>
-          <option value="facebook">Facebook</option>
-          <option value="kick">Kick</option>
-          <option value="rumble">Rumble</option>
-          <option value="iframe">iFrame embed</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>País</label>
-        <select name="country" class="form-select">
-          <option value="">Sin especificar</option>
-          <option value="MX">🇲🇽 México</option>
-          <option value="US">🇺🇸 Estados Unidos</option>
-          <option value="ES">🇪🇸 España</option>
-          <option value="AR">🇦🇷 Argentina</option>
-          <option value="CO">🇨🇴 Colombia</option>
-          <option value="CL">🇨🇱 Chile</option>
-          <option value="VE">🇻🇪 Venezuela</option>
-          <option value="PE">🇵🇪 Perú</option>
-          <option value="BR">🇧🇷 Brasil</option>
-          <option value="GT">🇬🇹 Guatemala</option>
-          <option value="HN">🇭🇳 Honduras</option>
-          <option value="SV">🇸🇻 El Salvador</option>
-          <option value="NI">🇳🇮 Nicaragua</option>
-          <option value="CR">🇨🇷 Costa Rica</option>
-          <option value="PA">🇵🇦 Panamá</option>
-          <option value="DO">🇩🇴 República Dominicana</option>
-          <option value="CU">🇨🇺 Cuba</option>
-          <option value="PR">🇵🇷 Puerto Rico</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Género</label>
-        <input type="text" name="genre" maxlength="60" placeholder="Ej: Noticias, Pop, Rock…" class="form-input"/>
-      </div>
-      <div class="form-group">
-        <label>URL de logo/portada</label>
-        <input type="url" name="cover_url" placeholder="https://…" class="form-input"/>
-      </div>
-      <div class="form-actions">
-        <button type="submit" class="btn btn-primary btn-lg">Enviar para revisión</button>
-      </div>
-    </form>
+    </div>
   `);
 
   document.getElementById('submitForm').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const payload = Object.fromEntries(fd.entries());
-    // Remove empty strings
-    Object.keys(payload).forEach(k => { if (!payload[k]) delete payload[k]; });
-    payload.user_id = state.session.user.id;
-    payload.status  = 'pending';
+    const payload = {
+      user_id:      state.session.user.id,
+      type:         fd.get('type'),
+      title:        fd.get('title').trim(),
+      subtitle:     fd.get('subtitle').trim() || null,
+      panel_type:   fd.get('panel_type'),
+      stream_url:   fd.get('stream_url').trim(),
+      external_url: fd.get('external_url').trim() || null,
+      cover_url:    fd.get('cover_url').trim()    || null,
+      embed_url:    fd.get('embed_url').trim()    || null,
+      country:      fd.get('country')             || null,
+      genre:        fd.get('genre').trim()        || null,
+      status:       'pending',
+    };
+
+    const btn = e.target.querySelector('[type=submit]');
+    btn.disabled = true; btn.textContent = 'Enviando…';
 
     const { error } = await supabase.from('content').insert(payload);
-    if (error) { showToast('Error al enviar: ' + error.message, 'error'); return; }
-    showToast('¡Enviado! Será revisado pronto.');
-    navigate('#/mis-envios');
+    if (error) {
+      showToast('Error: ' + error.message, 'error');
+      btn.disabled = false; btn.textContent = 'Enviar para revisión';
+    } else {
+      showToast('¡Enviado! Revisaremos tu contenido pronto.');
+      navigate('#/mis-envios');
+    }
   });
 }
 
@@ -857,267 +901,353 @@ async function renderMine() {
   if (!state.session) { navigate('#/login'); return; }
   setMain(loadingHTML());
   const { data, error } = await supabase.from('content').select('*')
-    .eq('user_id', state.session.user.id).order('created_at',{ascending:false});
+    .eq('user_id', state.session.user.id).order('created_at', {ascending:false});
   if (error) { showToast('Error','error'); return; }
-
-  const statusBadge = s => ({
-    pending:  '<span class="status-badge status-pending">⏳ Pendiente</span>',
-    approved: '<span class="status-badge status-approved">✅ Aprobado</span>',
-    rejected: '<span class="status-badge status-rejected">❌ Rechazado</span>',
-  }[s]||s);
 
   setMain(`
     <div class="page-header"><h1>Mis envíos</h1></div>
-    <div class="submissions-list">
-      ${!data?.length ? '<div class="empty-state"><span class="empty-icon">📭</span><h3>No has enviado nada aún</h3><a href="#/enviar" class="btn btn-primary">Agregar contenido</a></div>'
-        : data.map(item => `
-          <div class="submission-item">
-            <div class="submission-info">
-              <h3>${escapeHTML(item.title)}</h3>
-              <p>${escapeHTML(item.subtitle||'')}</p>
-              <small>${new Date(item.created_at).toLocaleDateString()}</small>
-            </div>
-            <div class="submission-actions">
-              ${statusBadge(item.status)}
-              <button class="btn btn-sm btn-danger" onclick="deleteItem('${item.id}')">Eliminar</button>
-            </div>
-          </div>`).join('')}
-    </div>
+    ${ !data.length
+      ? `<div class="empty-state"><span class="empty-icon">📭</span><h3>Aún no has enviado nada</h3><a href="#/enviar" class="btn btn-primary">Enviar contenido</a></div>`
+      : `<div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>Título</th><th>Tipo</th><th>Estado</th><th>Plays</th><th>Acciones</th>
+            </tr></thead>
+            <tbody>
+              ${data.map(item=>`
+                <tr>
+                  <td>${escapeHTML(item.title)}</td>
+                  <td>${TYPE_META[item.type]?.icon||''} ${TYPE_META[item.type]?.label||item.type}</td>
+                  <td><span class="status-badge status-${item.status}">${item.status}</span>
+                    ${item.reject_reason?`<div class="reject-reason">${escapeHTML(item.reject_reason)}</div>`:''}
+                  </td>
+                  <td>${item.plays||0}</td>
+                  <td>
+                    <button class="btn btn-sm btn-danger" onclick="window.deleteItem('${item.id}')">Eliminar</button>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`}
   `);
 }
 
 window.deleteItem = async (id) => {
-  if (!confirm('¿Eliminar este contenido?')) return;
-  const { error } = await supabase.from('content').delete().eq('id',id).eq('user_id',state.session.user.id);
-  if (error) { showToast('Error','error'); return; }
-  showToast('Eliminado'); renderMine();
+  if (!confirm('¿Eliminar este envío?')) return;
+  const { error } = await supabase.from('content').delete().eq('id', id).eq('user_id', state.session.user.id);
+  if (error) showToast('Error al eliminar','error');
+  else { showToast('Eliminado'); renderMine(); }
 };
 
-// ── ADMIN ────────────────────────────────────────────────────
+// ── ADMIN ─────────────────────────────────────────────────────
 async function renderAdmin() {
   if (state.profile?.role !== 'admin') { navigate('#/'); return; }
   setMain(loadingHTML());
-  const { data, error } = await supabase.from('content').select('*, profiles(username,email)')
-    .order('created_at',{ascending:false});
-  if (error) { showToast('Error','error'); return; }
+
+  const [{ data: pending }, { data: all }] = await Promise.all([
+    supabase.from('content').select('*').eq('status','pending').order('created_at',{ascending:true}),
+    supabase.from('content').select('*').order('created_at',{ascending:false}),
+  ]);
+
+  const counts = { pending:0, approved:0, rejected:0 };
+  all?.forEach(r => { if (counts[r.status]!==undefined) counts[r.status]++; });
 
   setMain(`
-    <div class="page-header"><h1>Panel de Administración</h1></div>
-    <div class="admin-filters">
-      <button class="btn btn-sm" onclick="filterAdmin('all')" id="adminAll">Todos (${data.length})</button>
-      <button class="btn btn-sm btn-warning" onclick="filterAdmin('pending')">⏳ Pendientes (${data.filter(x=>x.status==='pending').length})</button>
-      <button class="btn btn-sm btn-success" onclick="filterAdmin('approved')">✅ Aprobados (${data.filter(x=>x.status==='approved').length})</button>
-      <button class="btn btn-sm btn-danger" onclick="filterAdmin('rejected')">❌ Rechazados (${data.filter(x=>x.status==='rejected').length})</button>
+    <div class="admin-panel">
+      <div class="page-header"><h1>Panel de administración</h1></div>
+
+      <div class="stats-row">
+        <div class="stat-card stat-pending"><span class="stat-num">${counts.pending}</span><span class="stat-label">Pendientes</span></div>
+        <div class="stat-card stat-approved"><span class="stat-num">${counts.approved}</span><span class="stat-label">Aprobados</span></div>
+        <div class="stat-card stat-rejected"><span class="stat-num">${counts.rejected}</span><span class="stat-label">Rechazados</span></div>
+        <div class="stat-card"><span class="stat-num">${all?.length||0}</span><span class="stat-label">Total</span></div>
+      </div>
+
+      <h2 style="margin-bottom:1rem">Pendientes de revisión</h2>
+      ${ !pending?.length
+        ? `<div class="empty-state"><span class="empty-icon">✅</span><h3>Todo al día</h3></div>`
+        : `<div class="admin-cards">${pending.map(adminCardHTML).join('')}</div>`}
+
+      <h2 style="margin:2rem 0 1rem">Todos los contenidos</h2>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Título</th><th>Tipo</th><th>Usuario</th><th>Estado</th><th>Plays</th><th>Acciones</th></tr></thead>
+          <tbody>
+            ${all?.map(item=>`
+              <tr>
+                <td>${escapeHTML(item.title)}</td>
+                <td>${TYPE_META[item.type]?.icon||''} ${item.type}</td>
+                <td style="font-size:.75rem;color:var(--text3)">${item.user_id?.slice(0,8)}…</td>
+                <td><span class="status-badge status-${item.status}">${item.status}</span></td>
+                <td>${item.plays||0}</td>
+                <td style="display:flex;gap:.3rem;flex-wrap:wrap">
+                  ${item.status!=='approved'?`<button class="btn btn-sm btn-success" onclick="window.adminAction('${item.id}','approve')">Aprobar</button>`:''}
+                  ${item.status!=='rejected'?`<button class="btn btn-sm btn-danger"  onclick="window.adminAction('${item.id}','reject')">Rechazar</button>`:''}
+                  <button class="btn btn-sm" onclick="window.adminAction('${item.id}','delete')" style="background:var(--surface2)">🗑</button>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
     </div>
-    <table class="admin-table" id="adminTable">
-      <thead><tr><th>Título</th><th>Tipo</th><th>Usuario</th><th>Estado</th><th>Acciones</th></tr></thead>
-      <tbody>
-        ${data.map(item => `
-          <tr data-status="${item.status}">
-            <td><strong>${escapeHTML(item.title)}</strong><br><small>${escapeHTML(item.stream_url||item.embed_url||item.external_url||'')}</small></td>
-            <td>${TYPE_META[item.type]?.icon||''} ${item.type}</td>
-            <td>${escapeHTML(item.profiles?.username||'?')} <small>${escapeHTML(item.profiles?.email||'')}</small></td>
-            <td><span class="status-badge status-${item.status}">${item.status}</span></td>
-            <td class="admin-actions">
-              ${item.status!=='approved'?`<button class="btn btn-xs btn-success" onclick="adminAction('${item.id}','approved')">✅</button>`:''}
-              ${item.status!=='rejected'?`<button class="btn btn-xs btn-danger" onclick="adminAction('${item.id}','rejected')">❌</button>`:''}
-              <button class="btn btn-xs btn-warning" onclick="adminAction('${item.id}','delete')">🗑</button>
-            </td>
-          </tr>`).join('')}
-      </tbody>
-    </table>
   `);
 }
 
-window.filterAdmin = (status) => {
-  document.querySelectorAll('#adminTable tbody tr').forEach(row => {
-    row.style.display = status==='all' || row.dataset.status===status ? '' : 'none';
-  });
-};
+function adminCardHTML(item) {
+  const pt = item.panel_type || 'generic';
+  const url = item.stream_url || item.external_url || item.embed_url || '';
+  return `
+    <div class="admin-card">
+      <div class="admin-card-head">
+        <span>${TYPE_META[item.type]?.icon||'?'} ${item.type}</span>
+        <span>${PANEL_LABELS[pt]||pt}</span>
+        ${item.country?`<span>${getFlagEmoji(item.country)} ${item.country}</span>`:''}
+      </div>
+      <h3>${escapeHTML(item.title)}</h3>
+      ${item.subtitle?`<p style="font-size:.8rem;color:var(--text2)">${escapeHTML(item.subtitle)}</p>`:''}
+      ${url?`<a href="${url}" target="_blank" rel="noopener" class="ext-link">${url}</a>`:''}
+      <div class="admin-actions">
+        <button class="btn btn-sm btn-success" onclick="window.adminAction('${item.id}','approve')">✓ Aprobar</button>
+        <button class="btn btn-sm btn-danger"  onclick="window.adminAction('${item.id}','reject')">✗ Rechazar</button>
+        <button class="btn btn-sm" onclick="window.adminAction('${item.id}','delete')" style="background:var(--surface2)">🗑</button>
+      </div>
+    </div>`;
+}
 
 window.adminAction = async (id, action) => {
-  if (action === 'delete') {
-    if (!confirm('¿Eliminar permanentemente?')) return;
-    await supabase.from('content').delete().eq('id',id);
+  if (action === 'delete' && !confirm('¿Eliminar permanentemente?')) return;
+  let op;
+  if (action === 'approve') op = supabase.from('content').update({ status:'approved', reject_reason:null }).eq('id',id);
+  else if (action === 'reject') {
+    const reason = prompt('Motivo del rechazo (opcional):') || '';
+    op = supabase.from('content').update({ status:'rejected', reject_reason:reason||null }).eq('id',id);
   } else {
-    await supabase.from('content').update({ status: action }).eq('id',id);
+    op = supabase.from('content').delete().eq('id',id);
   }
-  showToast('Acción completada'); renderAdmin();
+  const { error } = await op;
+  if (error) showToast('Error: '+error.message,'error');
+  else { showToast('Acción realizada'); renderAdmin(); }
 };
 
-// ── PERFIL ───────────────────────────────────────────────────
+// ── PROFILE ───────────────────────────────────────────────────
 async function renderProfile() {
   if (!state.session) { navigate('#/login'); return; }
   setMain(`
-    <div class="page-header"><h1>Mi perfil</h1></div>
-    <form id="profileForm" class="form-card">
-      <div class="form-group">
-        <label>Nombre de usuario</label>
-        <input type="text" name="username" value="${escapeHTML(state.profile?.username||'')}" class="form-input" maxlength="50"/>
+    <div class="form-page">
+      <div class="form-card">
+        <h1>Mi perfil</h1>
+        <div class="profile-avatar-wrap">
+          <img class="profile-avatar"
+            src="${state.profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(state.profile?.username||'U')}&background=7C3AED&color=fff&size=96`}"
+            alt="Avatar"/>
+        </div>
+        <form id="profileForm" class="form">
+          <div class="form-group">
+            <label>Nombre de usuario</label>
+            <input type="text" name="username" value="${escapeHTML(state.profile?.username||'')}" maxlength="40">
+          </div>
+          <div class="form-group">
+            <label>URL de avatar</label>
+            <input type="url" name="avatar_url" value="${escapeHTML(state.profile?.avatar_url||'')}" placeholder="https://…">
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" style="width:100%">Guardar cambios</button>
+          </div>
+        </form>
       </div>
-      <div class="form-group">
-        <label>Avatar URL</label>
-        <input type="url" name="avatar_url" value="${escapeHTML(state.profile?.avatar_url||'')}" class="form-input"/>
-      </div>
-      <div class="form-actions">
-        <button type="submit" class="btn btn-primary">Guardar cambios</button>
-      </div>
-    </form>
+    </div>
   `);
 
   document.getElementById('profileForm').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const payload = Object.fromEntries(fd.entries());
-    const { error } = await supabase.from('profiles').update(payload).eq('id', state.session.user.id);
-    if (error) { showToast('Error','error'); return; }
-    await loadProfile(); showToast('Perfil actualizado');
+    const { error } = await supabase.from('profiles').update({
+      username:   fd.get('username').trim() || null,
+      avatar_url: fd.get('avatar_url').trim() || null,
+    }).eq('id', state.session.user.id);
+    if (error) showToast('Error: '+error.message,'error');
+    else { showToast('Perfil actualizado'); await loadProfile(); renderProfile(); }
   });
 }
 
-// ── LOGIN ────────────────────────────────────────────────────
+// ── AUTH PAGES ────────────────────────────────────────────────
 function renderLogin() {
   setMain(`
-    <div class="auth-container">
+    <div class="auth-page">
       <div class="auth-card">
+        <div class="auth-logo">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="16" fill="url(#lg2)"/>
+            <defs><linearGradient id="lg2" x1="0" y1="0" x2="32" y2="32"><stop stop-color="#7C3AED"/><stop offset="1" stop-color="#DB2777"/></linearGradient></defs>
+            <path d="M10 12a6 6 0 1 1 12 0v8a6 6 0 0 1-12 0V12z" fill="white" opacity=".9"/>
+            <circle cx="16" cy="16" r="3.5" fill="#7C3AED"/>
+          </svg>
+          <span>LibreAudio PRO</span>
+        </div>
         <h1>Iniciar sesión</h1>
-        <form id="loginForm" class="form-card">
+        <button class="btn btn-google" id="googleBtn" style="width:100%;margin-bottom:.75rem">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          Continuar con Google
+        </button>
+        <div class="or-divider">o</div>
+        <form id="loginForm" class="form">
           <div class="form-group">
             <label>Email</label>
-            <input type="email" name="email" required class="form-input" autocomplete="email"/>
+            <input type="email" name="email" placeholder="tu@email.com" required>
           </div>
           <div class="form-group">
             <label>Contraseña</label>
-            <input type="password" name="password" required class="form-input" autocomplete="current-password"/>
+            <input type="password" name="password" placeholder="••••••••" required>
           </div>
           <div class="form-actions">
-            <button type="submit" class="btn btn-primary btn-full">Entrar</button>
+            <button type="submit" class="btn btn-primary" style="width:100%">Iniciar sesión</button>
           </div>
         </form>
-        <p class="auth-links">
+        <div class="auth-switch">
           <a href="#/recuperar">¿Olvidaste tu contraseña?</a> ·
-          <a href="#/register">Registrarse</a>
-        </p>
+          ¿No tienes cuenta? <a href="#/register">Regístrate</a>
+        </div>
       </div>
-    </div>`);
+    </div>
+  `);
+
+  document.getElementById('googleBtn').addEventListener('click', async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: location.origin }
+    });
+    if (error) showToast(error.message,'error');
+  });
 
   document.getElementById('loginForm').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
+    const btn = e.target.querySelector('[type=submit]');
+    btn.disabled = true; btn.textContent = 'Entrando…';
     const { error } = await supabase.auth.signInWithPassword({
       email: fd.get('email'), password: fd.get('password')
     });
-    if (error) { showToast(error.message,'error'); return; }
-    navigate('#/');
+    if (error) { showToast(error.message,'error'); btn.disabled=false; btn.textContent='Iniciar sesión'; }
+    else navigate('#/');
   });
 }
 
-// ── REGISTER ─────────────────────────────────────────────────
 function renderRegister() {
   setMain(`
-    <div class="auth-container">
+    <div class="auth-page">
       <div class="auth-card">
+        <div class="auth-logo">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="16" fill="url(#lg3)"/>
+            <defs><linearGradient id="lg3" x1="0" y1="0" x2="32" y2="32"><stop stop-color="#7C3AED"/><stop offset="1" stop-color="#DB2777"/></linearGradient></defs>
+            <path d="M10 12a6 6 0 1 1 12 0v8a6 6 0 0 1-12 0V12z" fill="white" opacity=".9"/>
+            <circle cx="16" cy="16" r="3.5" fill="#7C3AED"/>
+          </svg>
+          <span>LibreAudio PRO</span>
+        </div>
         <h1>Crear cuenta</h1>
-        <form id="registerForm" class="form-card">
+        <button class="btn btn-google" id="googleBtnReg" style="width:100%;margin-bottom:.75rem">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          Registrarse con Google
+        </button>
+        <div class="or-divider">o</div>
+        <form id="registerForm" class="form">
           <div class="form-group">
             <label>Email</label>
-            <input type="email" name="email" required class="form-input" autocomplete="email"/>
+            <input type="email" name="email" placeholder="tu@email.com" required>
           </div>
           <div class="form-group">
             <label>Contraseña</label>
-            <input type="password" name="password" required minlength="6" class="form-input" autocomplete="new-password"/>
+            <input type="password" name="password" placeholder="Mínimo 6 caracteres" required minlength="6">
           </div>
           <div class="form-group">
             <label>Nombre de usuario</label>
-            <input type="text" name="username" required maxlength="30" class="form-input"/>
+            <input type="text" name="username" placeholder="Tu apodo…" maxlength="40">
           </div>
           <div class="form-actions">
-            <button type="submit" class="btn btn-primary btn-full">Registrarse</button>
+            <button type="submit" class="btn btn-primary" style="width:100%">Crear cuenta</button>
           </div>
         </form>
-        <p class="auth-links"><a href="#/login">Ya tengo cuenta</a></p>
+        <div class="auth-switch">¿Ya tienes cuenta? <a href="#/login">Inicia sesión</a></div>
       </div>
-    </div>`);
+    </div>
+  `);
+
+  document.getElementById('googleBtnReg').addEventListener('click', async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: location.origin }
+    });
+    if (error) showToast(error.message,'error');
+  });
 
   document.getElementById('registerForm').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const { data, error } = await supabase.auth.signUp({
+    const btn = e.target.querySelector('[type=submit]');
+    btn.disabled = true; btn.textContent = 'Creando cuenta…';
+    const { error } = await supabase.auth.signUp({
       email: fd.get('email'), password: fd.get('password'),
-      options: { data: { username: fd.get('username') } }
+      options: { data: { username: fd.get('username')||'' } }
     });
-    if (error) { showToast(error.message,'error'); return; }
-    // Create profile
-    if (data.user) {
-      await supabase.from('profiles').upsert({
-        id: data.user.id,
-        email: fd.get('email'),
-        username: fd.get('username'),
-      });
-    }
-    showToast('¡Cuenta creada! Revisa tu email para confirmar.');
-    navigate('#/login');
+    if (error) { showToast(error.message,'error'); btn.disabled=false; btn.textContent='Crear cuenta'; }
+    else { showToast('¡Cuenta creada! Revisa tu email para confirmar.'); navigate('#/'); }
   });
 }
 
-// ── RECUPERAR CONTRASEÑA ─────────────────────────────────────
 function renderForgotPassword() {
   setMain(`
-    <div class="auth-container">
+    <div class="auth-page">
       <div class="auth-card">
         <h1>Recuperar contraseña</h1>
-        <form id="forgotForm" class="form-card">
+        <form id="forgotForm" class="form">
           <div class="form-group">
             <label>Email</label>
-            <input type="email" name="email" required class="form-input"/>
+            <input type="email" name="email" placeholder="tu@email.com" required>
           </div>
           <div class="form-actions">
-            <button type="submit" class="btn btn-primary btn-full">Enviar enlace</button>
+            <button type="submit" class="btn btn-primary" style="width:100%">Enviar enlace</button>
           </div>
         </form>
-        <p class="auth-links"><a href="#/login">Volver al login</a></p>
+        <div class="auth-switch"><a href="#/login">Volver al inicio de sesión</a></div>
       </div>
-    </div>`);
-
+    </div>
+  `);
   document.getElementById('forgotForm').addEventListener('submit', async e => {
     e.preventDefault();
-    const fd = new FormData(e.target);
-    const { error } = await supabase.auth.resetPasswordForEmail(fd.get('email'), {
-      redirectTo: location.origin + location.pathname + '#/nueva-password'
-    });
-    if (error) { showToast(error.message,'error'); return; }
-    showToast('¡Enlace enviado! Revisa tu email.');
+    const email = new FormData(e.target).get('email');
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: location.origin+'#/nueva-password' });
+    if (error) showToast(error.message,'error');
+    else showToast('Enlace enviado. Revisa tu email.');
   });
 }
 
-// ── NUEVA CONTRASEÑA ─────────────────────────────────────────
 function renderNewPassword() {
   setMain(`
-    <div class="auth-container">
+    <div class="auth-page">
       <div class="auth-card">
         <h1>Nueva contraseña</h1>
-        <form id="newPassForm" class="form-card">
+        <form id="newPassForm" class="form">
           <div class="form-group">
             <label>Nueva contraseña</label>
-            <input type="password" name="password" required minlength="6" class="form-input"/>
+            <input type="password" name="password" placeholder="Mínimo 6 caracteres" required minlength="6">
           </div>
           <div class="form-actions">
-            <button type="submit" class="btn btn-primary btn-full">Actualizar contraseña</button>
+            <button type="submit" class="btn btn-primary" style="width:100%">Actualizar contraseña</button>
           </div>
         </form>
       </div>
-    </div>`);
-
+    </div>
+  `);
   document.getElementById('newPassForm').addEventListener('submit', async e => {
     e.preventDefault();
-    const fd = new FormData(e.target);
-    const { error } = await supabase.auth.updateUser({ password: fd.get('password') });
-    if (error) { showToast(error.message,'error'); return; }
-    showToast('¡Contraseña actualizada!'); navigate('#/');
+    const password = new FormData(e.target).get('password');
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) showToast(error.message,'error');
+    else { showToast('Contraseña actualizada'); navigate('#/'); }
   });
 }
 
-// ── 404 ──────────────────────────────────────────────────────
 function render404() {
-  setMain(`<div class="empty-state"><span class="empty-icon">🔍</span><h1>Página no encontrada</h1><a href="#/" class="btn btn-primary">Ir al inicio</a></div></div>`);
+  setMain(`<div class="auth-page"><div class="auth-card" style="text-align:center"><div style="font-size:4rem">🔍</div><h1>Página no encontrada</h1><a href="#/" class="btn btn-primary">Ir al inicio</a></div></div>`);
 }
